@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>新任職員日報システム - 管理画面</title>
+  <style>
+    /* 基本スタイル */
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      line-height: 1.6;
+    }
+    
+    /* ヘッダー */
+    .header {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 0;
+      margin: 0 0 20px 0;
+    }
+    
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 15px;
+    }
+    
+    .header-title {
+      font-weight: bold;
+      font-size: 18px;
+      margin: 0;
+    }
+    
+    .header-nav a {
+      color: white;
+      text-decoration: none;
+      margin: 0 10px;
+    }
+    
+    /* メインコンテンツ */
+    .container {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 15px;
+    }
+    
+    /* カード */
+    .card {
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    
+    .card-header {
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+      font-weight: bold;
+    }
+    
+    .card-body {
+      padding: 15px;
+    }
+    
+    /* ボタン */
+    .btn {
+      display: inline-block;
+      font-weight: 400;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: middle;
+      user-select: none;
+      border: 1px solid transparent;
+      padding: .375rem .75rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      border-radius: .25rem;
+      cursor: pointer;
+    }
+    
+    .btn-primary {
+      color: #fff;
+      background-color: #007bff;
+      border-color: #007bff;
+    }
+    
+    .btn-danger {
+      color: #fff;
+      background-color: #dc3545;
+      border-color: #dc3545;
+    }
+    
+    .btn-warning {
+      color: #212529;
+      background-color: #ffc107;
+      border-color: #ffc107;
+    }
+    
+    .btn-secondary {
+      color: #fff;
+      background-color: #6c757d;
+      border-color: #6c757d;
+    }
+    
+    /* メッセージ表示 */
+    .alert {
+      padding: 15px;
+      margin-bottom: 20px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+    }
+    
+    .alert-success {
+      color: #155724;
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+    }
+    
+    .alert-danger {
+      color: #721c24;
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+    }
+    
+    .alert-warning {
+      color: #856404;
+      background-color: #fff3cd;
+      border-color: #ffeeba;
+    }
+    
+    .alert-info {
+      color: #0c5460;
+      background-color: #d1ecf1;
+      border-color: #bee5eb;
+    }
+    
+    /* ローディング表示 */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    
+    .loading-content {
+      background-color: white;
+      padding: 20px;
+      border-radius: 5px;
+      text-align: center;
+    }
+    
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #007bff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 2s linear infinite;
+      margin: 15px auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* フッター */
+    .footer {
+      text-align: center;
+      padding: 20px 0;
+      margin-top: 30px;
+      background-color: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+      color: #6c757d;
+    }
+    
+    /* テーブル */
+    .table {
+      width: 100%;
+      margin-bottom: 1rem;
+      background-color: transparent;
+      border-collapse: collapse;
+    }
+    
+    .table th,
+    .table td {
+      padding: 0.75rem;
+      vertical-align: top;
+      border-top: 1px solid #dee2e6;
+    }
+    
+    .table thead th {
+      vertical-align: bottom;
+      border-bottom: 2px solid #dee2e6;
+      background-color: #f8f9fa;
+    }
+  </style>
+</head>
+<body>
+  <!-- シンプルなヘッダー -->
+  <div class="header">
+    <div class="header-content">
+      <h1 class="header-title">新任職員日報システム - 管理画面</h1>
+      <div class="header-nav">
+        <a href="<?= ScriptApp.getService().getUrl() ?>">日報一覧</a>
+        <? if (canCreate) { ?>
+          <a href="<?= ScriptApp.getService().getUrl() ?>?action=new">新規作成</a>
+        <? } ?>
+        <span style="margin-left: 15px;"><?= userName ?> (<?= user ?>) としてログイン中</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- ステータスメッセージ表示エリア -->
+    <div id="statusArea" style="display: none;" class="alert">
+      <div id="statusMessage"></div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">システムメンテナンス</div>
+      <div class="card-body">
+        <p>以下の機能は慎重に使用してください。データの削除や変更を行います。</p>
+        
+        <div style="margin-bottom: 20px;">
+          <h4>重複日報の削除</h4>
+          <p>システム内に存在する重複した日報を検出し、古い方を削除します。</p>
+          <button id="cleanupDuplicatesBtn" class="btn btn-warning">重複日報の検出・削除</button>
+          <div id="duplicateResults" style="margin-top: 10px;"></div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <h4>キャッシュのクリア</h4>
+          <p>システム内のキャッシュをすべてクリアします。動作が遅い場合や表示に問題がある場合に実行してください。</p>
+          <button id="clearCacheBtn" class="btn btn-secondary">全キャッシュをクリア</button>
+          <div id="cacheResults" style="margin-top: 10px;"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">システム情報</div>
+      <div class="card-body">
+        <p>現在のシステム情報</p>
+        <ul>
+          <li>管理者: <?= userName ?> (<?= user ?>)</li>
+          <li>スプレッドシートID: <?= SPREADSHEET_ID ?></li>
+          <li>キャッシュ有効期間: <?= CACHE_EXPIRATION ?>秒</li>
+          <li>アプリケーションURL: <?= ScriptApp.getService().getUrl() ?></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    © 2025 新任職員日報システム
+  </div>
+  
+  <!-- ローディングオーバーレイ -->
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-content">
+      <div id="loadingMessage">処理中...</div>
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <script>
+    // ユーティリティ関数
+    function showLoading(message) {
+      document.getElementById('loadingMessage').textContent = message || '処理中...';
+      document.getElementById('loadingOverlay').style.display = 'flex';
+    }
+    
+    function hideLoading() {
+      document.getElementById('loadingOverlay').style.display = 'none';
+    }
+    
+    function showStatus(message, type) {
+      var statusArea = document.getElementById('statusArea');
+      var statusMessage = document.getElementById('statusMessage');
+      
+      statusArea.className = 'alert alert-' + (type || 'info');
+      statusMessage.textContent = message;
+      statusArea.style.display = 'block';
+      
+      // 5秒後に自動で消える
+      setTimeout(function() {
+        statusArea.style.display = 'none';
+      }, 5000);
+    }
+    
+    // 重複日報クリーンアップ
+    document.getElementById('cleanupDuplicatesBtn').addEventListener('click', function() {
+      if (!confirm('重複した日報のうち古い方を削除します。この操作は元に戻せません。続行しますか？')) {
+        return;
+      }
+      
+      showLoading('重複日報を検出・削除しています...');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          hideLoading();
+          
+          if (result.success) {
+            showStatus(result.message, 'success');
+            
+            // 詳細結果を表示
+            var resultDiv = document.getElementById('duplicateResults');
+            if (result.deletedCount > 0) {
+              var html = '<div class="alert alert-info">' +
+                        '<p><strong>' + result.deletedCount + '件</strong>の重複日報を削除しました。</p>';
+              
+              if (result.details && result.details.length > 0) {
+                html += '<table class="table">' +
+                       '<thead><tr><th>ID</th><th>削除行</th><th>保持行</th></tr></thead>' +
+                       '<tbody>';
+                
+                for (var i = 0; i < Math.min(result.details.length, 10); i++) {
+                  var detail = result.details[i];
+                  html += '<tr>' +
+                         '<td>' + detail.id + '</td>' +
+                         '<td>' + detail.rowToDelete + '</td>' +
+                         '<td>' + detail.rowToKeep + '</td>' +
+                         '</tr>';
+                }
+                
+                html += '</tbody></table>';
+                
+                if (result.details.length > 10) {
+                  html += '<p>（他 ' + (result.details.length - 10) + ' 件）</p>';
+                }
+              }
+              
+              html += '</div>';
+              resultDiv.innerHTML = html;
+            } else {
+              resultDiv.innerHTML = '<div class="alert alert-info">重複した日報はありませんでした。</div>';
+            }
+          } else {
+            showStatus('エラー: ' + (result.message || '不明なエラー'), 'danger');
+            document.getElementById('duplicateResults').innerHTML = '';
+          }
+        })
+        .withFailureHandler(function(error) {
+          hideLoading();
+          showStatus('エラーが発生しました: ' + error.message, 'danger');
+          document.getElementById('duplicateResults').innerHTML = '';
+        })
+        .cleanupDuplicateReports();
+    });
+    
+    // キャッシュクリア
+    document.getElementById('clearCacheBtn').addEventListener('click', function() {
+      if (!confirm('システム内のすべてのキャッシュをクリアします。続行しますか？')) {
+        return;
+      }
+      
+      showLoading('キャッシュをクリアしています...');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          hideLoading();
+          
+          if (result.success) {
+            showStatus(result.message, 'success');
+            
+            // 詳細結果を表示
+            var resultDiv = document.getElementById('cacheResults');
+            resultDiv.innerHTML = '<div class="alert alert-info">' +
+                                 '<p>キャッシュをクリアしました。</p>' +
+                                 '<p>クリアした日報ID数: ' + result.clearedIds + '件</p>' +
+                                 '</div>';
+          } else {
+            showStatus('エラー: ' + (result.message || '不明なエラー'), 'danger');
+            document.getElementById('cacheResults').innerHTML = '';
+          }
+        })
+        .withFailureHandler(function(error) {
+          hideLoading();
+          showStatus('エラーが発生しました: ' + error.message, 'danger');
+          document.getElementById('cacheResults').innerHTML = '';
+        })
+        .clearAllCaches();
+    });
+  </script>
+</body>
+</html>
