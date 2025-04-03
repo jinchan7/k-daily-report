@@ -355,7 +355,7 @@
 // 2. 送信データの厳密な構築
 // 3. エラー処理とリダイレクトの安全化
 
-// フォーム送信の処理（完全修正版）
+// フォーム送信処理の改善版
 document.addEventListener('DOMContentLoaded', function() {
   var form = document.getElementById('reportForm');
   if (!form) return;
@@ -371,44 +371,32 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   
-  // メッセージ表示関数
-  function showMessage(message, type, duration) {
-    // 既存のメッセージを削除
-    var existingMessages = document.querySelectorAll('.message-box');
-    existingMessages.forEach(function(msg) {
-      if (document.body.contains(msg)) {
-        document.body.removeChild(msg);
-      }
-    });
+  // 通知表示関数
+  function showNotification(message, type, duration) {
+    var notificationElement = document.createElement('div');
+    notificationElement.style.position = 'fixed';
+    notificationElement.style.top = '20px';
+    notificationElement.style.left = '50%';
+    notificationElement.style.transform = 'translateX(-50%)';
+    notificationElement.style.padding = '15px 20px';
+    notificationElement.style.borderRadius = '4px';
+    notificationElement.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+    notificationElement.style.zIndex = '9999';
     
-    var messageBox = document.createElement('div');
-    messageBox.className = 'message-box';
-    messageBox.style.position = 'fixed';
-    messageBox.style.top = '20px';
-    messageBox.style.left = '50%';
-    messageBox.style.transform = 'translateX(-50%)';
-    messageBox.style.padding = '15px 20px';
-    messageBox.style.borderRadius = '4px';
-    messageBox.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-    messageBox.style.zIndex = '9999';
-    messageBox.style.minWidth = '250px';
-    messageBox.style.textAlign = 'center';
-    
-    // タイプに応じたスタイル
     if (type === 'error') {
-      messageBox.style.backgroundColor = '#dc3545';
-      messageBox.style.color = 'white';
+      notificationElement.style.backgroundColor = '#dc3545';
+      notificationElement.style.color = 'white';
     } else if (type === 'success') {
-      messageBox.style.backgroundColor = '#28a745';
-      messageBox.style.color = 'white';
+      notificationElement.style.backgroundColor = '#28a745';
+      notificationElement.style.color = 'white';
     } else if (type === 'warning') {
-      messageBox.style.backgroundColor = '#ffc107';
-      messageBox.style.color = '#212529';
+      notificationElement.style.backgroundColor = '#ffc107';
+      notificationElement.style.color = '#212529';
     } else if (type === 'loading') {
-      messageBox.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-      messageBox.style.color = 'white';
+      notificationElement.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+      notificationElement.style.color = 'white';
       
-      // ロード中はスピナーを追加
+      // スピナー追加
       var spinner = document.createElement('div');
       spinner.className = 'spinner';
       spinner.style.display = 'inline-block';
@@ -418,37 +406,61 @@ document.addEventListener('DOMContentLoaded', function() {
       spinner.style.borderRadius = '50%';
       spinner.style.borderTopColor = 'white';
       spinner.style.marginLeft = '10px';
+      spinner.style.verticalAlign = 'middle';
       spinner.style.animation = 'spin 1s linear infinite';
       
-      // アニメーション用のスタイル
-      var style = document.createElement('style');
-      style.innerHTML = '@keyframes spin {0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}';
-      document.head.appendChild(style);
+      // アニメーション用のスタイル追加
+      if (!document.querySelector('#spinner-style')) {
+        var style = document.createElement('style');
+        style.id = 'spinner-style';
+        style.innerHTML = '@keyframes spin {0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}';
+        document.head.appendChild(style);
+      }
       
-      messageBox.textContent = message;
-      messageBox.appendChild(spinner);
+      notificationElement.textContent = message;
+      notificationElement.appendChild(spinner);
     } else {
-      messageBox.style.backgroundColor = '#007bff';
-      messageBox.style.color = 'white';
-      messageBox.textContent = message;
+      notificationElement.style.backgroundColor = '#007bff';
+      notificationElement.style.color = 'white';
     }
     
     if (type !== 'loading') {
-      messageBox.textContent = message;
+      notificationElement.textContent = message;
     }
     
-    document.body.appendChild(messageBox);
+    document.body.appendChild(notificationElement);
     
     // 自動的に消える（loading以外）
     if (type !== 'loading') {
       setTimeout(function() {
-        if (document.body.contains(messageBox)) {
-          document.body.removeChild(messageBox);
+        if (document.body.contains(notificationElement)) {
+          document.body.removeChild(notificationElement);
         }
       }, duration || 3000);
     }
     
-    return messageBox;
+    return notificationElement;
+  }
+  
+  // 安全なページ遷移関数
+  function navigateTo(action, id) {
+    try {
+      var baseUrl = window.location.href.split('?')[0];
+      var url = baseUrl;
+      
+      if (action) {
+        url += '?action=' + encodeURIComponent(action);
+        if (id) {
+          url += '&id=' + encodeURIComponent(id);
+        }
+      }
+      
+      debugLog('ページ遷移先: ' + url);
+      window.location.href = url;
+    } catch (e) {
+      debugLog('ページ遷移エラー', e);
+      alert('ページ遷移に失敗しました。もう一度試すか、ページを手動で更新してください。');
+    }
   }
   
   // 保存（公開）ボタンの処理
@@ -469,7 +481,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     if (!isValid) {
-      showMessage('必須項目を入力してください', 'error', 3000);
+      showNotification('必須項目を入力してください', 'error', 3000);
       return;
     }
     
@@ -502,7 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // 送信中メッセージ
-    var loadingMessage = showMessage('保存中...', 'loading');
+    var loadingMessage = showNotification('保存中...', 'loading');
     
     // ボタンを無効化
     var submitBtn = form.querySelector('button[type="submit"]');
@@ -523,7 +535,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // タイムアウト通知
-        showMessage('処理に時間がかかっています。そのままお待ちください...', 'warning', 5000);
+        showNotification('処理に時間がかかっています。そのままお待ちください...', 'warning', 5000);
         
         // 15秒後にリダイレクト提案
         setTimeout(function() {
@@ -533,14 +545,14 @@ document.addEventListener('DOMContentLoaded', function() {
               try {
                 if (formData.id) {
                   // 編集の場合は詳細画面へ
-                  window.location.href = '<?= ScriptApp.getService().getUrl() ?>?action=detail&id=' + formData.id;
+                  navigateTo('detail', formData.id);
                 } else {
                   // 新規の場合は一覧へ
-                  window.location.href = '<?= ScriptApp.getService().getUrl() ?>';
+                  navigateTo();
                 }
               } catch (e) {
                 debugLog('リダイレクトエラー', e);
-                showMessage('画面遷移に失敗しました。手動でページを更新してください。', 'error', 5000);
+                showNotification('画面遷移に失敗しました。手動でページを更新してください。', 'error', 5000);
               }
             } else {
               // ボタンを元に戻す
@@ -568,15 +580,15 @@ document.addEventListener('DOMContentLoaded', function() {
         debugLog('保存結果', result);
         
         if (result && result.success) {
-          showMessage(result.updated ? '日報を更新しました' : '日報を作成しました', 'success', 2000);
+          showNotification(result.updated ? '日報を更新しました' : '日報を作成しました', 'success', 2000);
           
           // 詳細ページへ遷移（2秒後）
           setTimeout(function() {
             try {
-              window.location.href = '<?= ScriptApp.getService().getUrl() ?>?action=detail&id=' + result.id;
+              navigateTo('detail', result.id);
             } catch (e) {
               debugLog('リダイレクトエラー', e);
-              showMessage('画面遷移に失敗しました。', 'error', 3000);
+              showNotification('画面遷移に失敗しました。', 'error', 3000);
               
               // ボタンを元に戻す
               if (submitBtn) submitBtn.disabled = false;
@@ -586,7 +598,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           // エラーメッセージ
           var errorMsg = result && result.message ? result.message : '不明なエラーが発生しました';
-          showMessage('エラー: ' + errorMsg, 'error', 5000);
+          showNotification('エラー: ' + errorMsg, 'error', 5000);
           
           // ボタンを元に戻す
           if (submitBtn) submitBtn.disabled = false;
@@ -607,7 +619,7 @@ document.addEventListener('DOMContentLoaded', function() {
         debugLog('保存エラー', error);
         
         // エラー表示
-        showMessage('エラーが発生しました: ' + (error.message || '不明なエラー'), 'error', 5000);
+        showNotification('エラーが発生しました: ' + (error.message || '不明なエラー'), 'error', 5000);
         
         // ボタンを元に戻す
         if (submitBtn) submitBtn.disabled = false;
@@ -644,7 +656,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       
       // 送信中メッセージ
-      var loadingMessage = showMessage('下書き保存中...', 'loading');
+      var loadingMessage = showNotification('下書き保存中...', 'loading');
       
       // ボタンを無効化
       var submitBtn = form.querySelector('button[type="submit"]');
@@ -665,7 +677,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
           
           // タイムアウト通知
-          showMessage('処理に時間がかかっています。そのままお待ちください...', 'warning', 5000);
+          showNotification('処理に時間がかかっています。そのままお待ちください...', 'warning', 5000);
           
           // 15秒後にリダイレクト提案
           setTimeout(function() {
@@ -675,14 +687,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                   if (formData.id) {
                     // 編集の場合は編集画面に戻る
-                    window.location.href = '<?= ScriptApp.getService().getUrl() ?>?action=edit&id=' + formData.id;
+                    navigateTo('edit', formData.id);
                   } else {
                     // 新規の場合は一覧へ
-                    window.location.href = '<?= ScriptApp.getService().getUrl() ?>';
+                    navigateTo();
                   }
                 } catch (e) {
                   debugLog('リダイレクトエラー', e);
-                  showMessage('画面遷移に失敗しました。手動でページを更新してください。', 'error', 5000);
+                  showNotification('画面遷移に失敗しました。手動でページを更新してください。', 'error', 5000);
                 }
               } else {
                 // ボタンを元に戻す
@@ -710,16 +722,16 @@ document.addEventListener('DOMContentLoaded', function() {
           debugLog('下書き保存結果', result);
           
           if (result && result.success) {
-            showMessage('下書きを保存しました', 'success', 2000);
+            showNotification('下書きを保存しました', 'success', 2000);
             
             if (!currentId) {
               // 新規作成時は編集画面に移動
               setTimeout(function() {
                 try {
-                  window.location.href = '<?= ScriptApp.getService().getUrl() ?>?action=edit&id=' + result.id;
+                  navigateTo('edit', result.id);
                 } catch (e) {
                   debugLog('リダイレクトエラー', e);
-                  showMessage('画面遷移に失敗しました。', 'error', 3000);
+                  showNotification('画面遷移に失敗しました。', 'error', 3000);
                   
                   // ボタンを元に戻す
                   if (submitBtn) submitBtn.disabled = false;
@@ -734,7 +746,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             // エラーメッセージ
             var errorMsg = result && result.message ? result.message : '不明なエラーが発生しました';
-            showMessage('エラー: ' + errorMsg, 'error', 5000);
+            showNotification('エラー: ' + errorMsg, 'error', 5000);
             
             // ボタンを元に戻す
             if (submitBtn) submitBtn.disabled = false;
@@ -755,7 +767,7 @@ document.addEventListener('DOMContentLoaded', function() {
           debugLog('下書き保存エラー', error);
           
           // エラー表示
-          showMessage('エラーが発生しました: ' + (error.message || '不明なエラー'), 'error', 5000);
+          showNotification('エラーが発生しました: ' + (error.message || '不明なエラー'), 'error', 5000);
           
           // ボタンを元に戻す
           if (submitBtn) submitBtn.disabled = false;
