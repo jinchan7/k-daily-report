@@ -106,6 +106,7 @@ function setupSystem() {
   Logger.log('1. [公開] > [ウェブ アプリケーションとして導入] を選択');
   Logger.log('2. 適切な公開設定を選択し、[導入] をクリック');
 }
+
 // コメントシートのセットアップや修正を行う関数
 function setupCommentSheet(ss, sheetNames) {
   var commentSheet;
@@ -478,6 +479,61 @@ function saveReport(data) {
   }
 }
 
+// IDで日報を取得（登録日対応版）
+function getReportById(id) {
+  // キャッシュから取得を試みる（パフォーマンス改善）
+  var cache = CacheService.getScriptCache();
+  var cachedReport = cache.get('report_' + id);
+  
+  if (cachedReport) {
+    return JSON.parse(cachedReport);
+  }
+  
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var reportSheet = ss.getSheetByName(SHEET_NAMES.DAILY_REPORT);
+  var reportData = reportSheet.getDataRange().getValues();
+  var headers = reportData[0];
+  
+  // ヘッダー行のインデックスを取得
+  var idIndex = headers.indexOf('ID');
+  var createdAtIndex = headers.indexOf('作成日時');
+  var authorIndex = headers.indexOf('作成者');
+  var yIndex = headers.indexOf('やったこと(Y)');
+  var wIndex = headers.indexOf('わかったこと(W)');
+  var tIndex = headers.indexOf('つぎやること(T)');
+  var nextIndex = headers.indexOf('明日やること');
+  var commentIndex = headers.indexOf('感想等');
+  var statusIndex = headers.indexOf('ステータス');
+  var updatedAtIndex = headers.indexOf('最終更新日時');
+  var reportDateIndex = headers.indexOf('登録日');
+  
+  // ヘッダーをスキップして検索
+  for (var i = 1; i < reportData.length; i++) {
+    if (reportData[i][idIndex] === id) {
+      // 使いやすい形式に変換 - インデックスを使用して明示的にマッピング
+      var report = {
+        id: reportData[i][idIndex],
+        createdAt: reportData[i][createdAtIndex],
+        author: reportData[i][authorIndex],
+        reportDate: reportDateIndex !== -1 ? reportData[i][reportDateIndex] : reportData[i][createdAtIndex], // 登録日があればそれを使用
+        y: reportData[i][yIndex],
+        w: reportData[i][wIndex],
+        t: reportData[i][tIndex],
+        next: reportData[i][nextIndex],
+        comment: reportData[i][commentIndex],
+        status: reportData[i][statusIndex],
+        updatedAt: reportData[i][updatedAtIndex]
+      };
+      
+      // 結果をキャッシュに保存（パフォーマンス改善）
+      cache.put('report_' + id, JSON.stringify(report), CACHE_EXPIRATION);
+      
+      return report;
+    }
+  }
+  return null;
+}
+
 // 日報一覧を取得（検索条件あり）- 登録日対応版
 function getReports(params) {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -712,6 +768,7 @@ function saveComment(data) {
     };
   }
 }
+
 // 日報IDに基づいてコメントを取得
 function getCommentsByReportId(reportId) {
   try {
