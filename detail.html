@@ -497,12 +497,118 @@
               <? } ?>
               
               <!-- 返信フォーム（初期状態では非表示） -->
-              <div class="reply-form" style="display: none;" data-parent-id="<?= comment.id ?>">
-                <div id="replyStatus-<?= comment.id ?>" style="display: none;" class="alert mb-2"></div>
-                <textarea class="form-control" rows="2" placeholder="返信を入力..."></textarea>
-                <button class="btn btn-sm btn-primary submit-reply">返信を送信</button>
-                <button class="btn btn-sm btn-link cancel-reply">キャンセル</button>
-              </div>
+<!-- 返信フォーム (修正版) -->
+<div class="reply-form" style="display: none;" data-parent-id="<?= comment.id ?>">
+  <div id="replyStatus-<?= comment.id ?>" style="display: none;" class="alert mb-2"></div>
+  <textarea class="form-control" rows="2" placeholder="返信を入力..."></textarea>
+  <button class="btn btn-sm btn-primary direct-reply-submit">返信を送信</button>
+  <button class="btn btn-sm btn-link cancel-reply">キャンセル</button>
+</div>
+
+<script>
+// 返信ボタンの処理
+document.addEventListener('DOMContentLoaded', function() {
+  // 返信表示ボタン
+  var showReplyButtons = document.querySelectorAll('.reply-button');
+  showReplyButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var commentId = this.getAttribute('data-comment-id');
+      var replyForm = document.querySelector('.reply-form[data-parent-id="' + commentId + '"]');
+      if (replyForm) {
+        // 全ての返信フォームを非表示
+        document.querySelectorAll('.reply-form').forEach(function(form) {
+          form.style.display = 'none';
+        });
+        
+        // このフォームを表示
+        replyForm.style.display = 'block';
+        var textarea = replyForm.querySelector('textarea');
+        if (textarea) textarea.focus();
+      }
+    });
+  });
+  
+  // キャンセルボタン
+  var cancelButtons = document.querySelectorAll('.cancel-reply');
+  cancelButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var replyForm = this.closest('.reply-form');
+      if (replyForm) {
+        replyForm.style.display = 'none';
+        var textarea = replyForm.querySelector('textarea');
+        if (textarea) textarea.value = '';
+      }
+    });
+  });
+  
+  // 返信送信ボタン
+  var replySubmitButtons = document.querySelectorAll('.direct-reply-submit');
+  replySubmitButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var replyForm = this.closest('.reply-form');
+      if (!replyForm) return;
+      
+      var textarea = replyForm.querySelector('textarea');
+      if (!textarea) return;
+      
+      var content = textarea.value.trim();
+      if (!content) {
+        alert('返信を入力してください');
+        return;
+      }
+      
+      var parentId = replyForm.getAttribute('data-parent-id');
+      if (!parentId) return;
+      
+      // 送信中表示
+      this.disabled = true;
+      this.textContent = '送信中...';
+      
+      // ステータス表示
+      var statusArea = document.getElementById('replyStatus-' + parentId);
+      if (statusArea) {
+        statusArea.style.display = 'block';
+        statusArea.className = 'alert mb-2 alert-info';
+        statusArea.textContent = '送信中...';
+      }
+      
+      // 送信データ
+      var data = {
+        reportId: '<?= report.id ?>',
+        parentId: parentId,
+        content: content
+      };
+      
+      // サーバーに送信
+      google.script.run
+        .withSuccessHandler(function(result) {
+          // 成功処理
+          if (statusArea) {
+            statusArea.className = 'alert mb-2 alert-success';
+            statusArea.textContent = '返信を投稿しました';
+          }
+          
+          // 3秒後にページを更新
+          setTimeout(function() {
+            window.location.reload();
+          }, 3000);
+        })
+        .withFailureHandler(function(error) {
+          // エラー処理
+          if (statusArea) {
+            statusArea.className = 'alert mb-2 alert-danger';
+            statusArea.textContent = 'エラーが発生しました';
+          }
+          
+          // ボタンを復活
+          btn.disabled = false;
+          btn.textContent = '返信を送信';
+        })
+        .saveComment(data);
+    });
+  });
+});
+</script>
             </div>
           <? 
               }
@@ -512,16 +618,85 @@
       </div>
       
       <!-- 新規コメント入力フォーム -->
-      <div class="card mt-3">
-        <div class="card-body">
-          <h5 style="margin-top: 0;">新規コメント</h5>
-          <div id="commentStatus" style="display: none;" class="alert mb-2"></div>
-          <form id="commentForm" onsubmit="return false;">
-            <textarea id="newCommentContent" class="form-control" rows="3" placeholder="コメントを入力..."></textarea>
-            <button id="submitComment" type="submit" class="btn btn-primary mt-3">コメントを投稿</button>
-          </form>
-        </div>
-      </div>
+<!-- 新規コメント入力フォーム (修正版) -->
+<div class="card mt-3">
+  <div class="card-body">
+    <h5 style="margin-top: 0;">新規コメント</h5>
+    <div id="commentStatus" style="display: none;" class="alert mb-2"></div>
+    <div>
+      <textarea id="newCommentContent" class="form-control" rows="3" placeholder="コメントを入力..."></textarea>
+      <button id="directCommentSubmit" class="btn btn-primary mt-3">コメントを投稿</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 直接コメント送信処理
+document.addEventListener('DOMContentLoaded', function() {
+  var submitBtn = document.getElementById('directCommentSubmit');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', function() {
+      var content = document.getElementById('newCommentContent').value.trim();
+      if (!content) {
+        alert('コメントを入力してください');
+        return;
+      }
+      
+      // 送信中表示
+      this.disabled = true;
+      this.textContent = '送信中...';
+      
+      // ステータス表示
+      var statusArea = document.getElementById('commentStatus');
+      if (statusArea) {
+        statusArea.style.display = 'block';
+        statusArea.className = 'alert mb-2 alert-info';
+        statusArea.textContent = '送信中...';
+      }
+      
+      // 送信データ
+      var data = {
+        reportId: '<?= report.id ?>',
+        content: content
+      };
+      
+      // サーバーに送信
+      google.script.run
+        .withSuccessHandler(function(result) {
+          // 成功処理
+          if (statusArea) {
+            statusArea.className = 'alert mb-2 alert-success';
+            statusArea.textContent = 'コメントを投稿しました';
+          }
+          
+          // 入力欄をクリア
+          document.getElementById('newCommentContent').value = '';
+          
+          // ボタンを復活
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'コメントを投稿';
+          
+          // 3秒後にページを更新
+          setTimeout(function() {
+            window.location.reload();
+          }, 3000);
+        })
+        .withFailureHandler(function(error) {
+          // エラー処理
+          if (statusArea) {
+            statusArea.className = 'alert mb-2 alert-danger';
+            statusArea.textContent = 'エラーが発生しました';
+          }
+          
+          // ボタンを復活
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'コメントを投稿';
+        })
+        .saveComment(data);
+    });
+  }
+});
+</script>
     </div>
   </div>
 
