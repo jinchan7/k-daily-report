@@ -82,10 +82,6 @@ function setupSystem() {
     var userHeaders = ['メールアドレス', '名前', '通知設定', 'ロール'];
     userSheet.getRange(1, 1, 1, userHeaders.length).setValues([userHeaders]);
     userSheet.setFrozenRows(1);
-    
-    // 初期ユーザー（松本美音さん）を追加
-    var initialUser = ['mio-matsumoto@soka.ed.jp', '松本美音', 'TRUE', '一般'];
-    userSheet.getRange(2, 1, 1, initialUser.length).setValues([initialUser]);
   }
   
   // 設定シートの作成（存在しない場合）
@@ -110,7 +106,6 @@ function setupSystem() {
   Logger.log('1. [公開] > [ウェブ アプリケーションとして導入] を選択');
   Logger.log('2. 適切な公開設定を選択し、[導入] をクリック');
 }
-
 // コメントシートのセットアップや修正を行う関数
 function setupCommentSheet(ss, sheetNames) {
   var commentSheet;
