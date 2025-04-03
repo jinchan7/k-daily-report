@@ -344,7 +344,9 @@ function isAdmin(email) {
   return false;
 }
 
-// 完全修正版 saveReport 関数
+// Code.gs の saveReport 関数修正
+// レコード重複問題を解消するための修正版
+
 function saveReport(data) {
   try {
     var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -352,6 +354,10 @@ function saveReport(data) {
     var reportData = reportSheet.getDataRange().getValues();
     var headers = reportData[0];
     var now = new Date();
+    
+    // デバッグログの強化
+    Logger.log('=========== saveReport 開始 ===========');
+    Logger.log('リクエスト: ID=' + (data.id || '新規') + ', 作成者=' + Session.getActiveUser().getEmail());
     
     // ヘッダー行のインデックスを取得
     var idIndex = headers.indexOf('ID');
@@ -366,64 +372,91 @@ function saveReport(data) {
     var updatedAtIndex = headers.indexOf('最終更新日時');
     var reportDateIndex = headers.indexOf('登録日');
     
-    // デバッグログを詳細に出力
-    Logger.log('保存処理開始: ID=' + (data.id || '新規') + 
-              ', 作成者=' + Session.getActiveUser().getEmail());
+    // HTMLエスケープ処理
+    data.y = escapeHtml(data.y || '');
+    data.w = escapeHtml(data.w || '');
+    data.t = escapeHtml(data.t || '');
+    data.next = escapeHtml(data.next || '');
+    data.comment = escapeHtml(data.comment || '');
     
     // === 編集（更新）の場合 ===
     if (data.id && data.id.trim() !== '') {
       Logger.log('既存日報の更新処理開始: ID=' + data.id);
       var foundRow = -1;
       
-      // IDでレコードを厳密に検索
+      // ★★★ 修正: IDでレコードを厳密に検索（データ型に注意） ★★★
       for (var i = 1; i < reportData.length; i++) {
-        if (reportData[i][idIndex] === data.id) {
-          foundRow = i + 1; // スプレッドシートは1始まり
+        // IDの型をログに出力
+        if (i < 5) { // 最初の数行だけ出力
+          Logger.log('行=' + (i+1) + ', ID型=' + typeof reportData[i][idIndex] + 
+                    ', 値=' + reportData[i][idIndex] + 
+                    ', 比較結果=' + (reportData[i][idIndex] === data.id));
+        }
+        
+        // 文字列に変換して比較（厳密化）
+        var rowId = String(reportData[i][idIndex]);
+        if (rowId === data.id) {
+          foundRow = i;
+          Logger.log('一致する行を発見: 行=' + (i+1) + ', ID=' + data.id);
           break;
         }
       }
       
       // レコードが見つかった場合
       if (foundRow !== -1) {
-        Logger.log('更新対象レコード検出: 行=' + foundRow);
+        Logger.log('更新対象レコード: 行=' + (foundRow + 1));
         
-        // 各フィールドを個別に更新
-        reportSheet.getRange(foundRow, yIndex + 1).setValue(data.y || '');
-        reportSheet.getRange(foundRow, wIndex + 1).setValue(data.w || '');
-        reportSheet.getRange(foundRow, tIndex + 1).setValue(data.t || '');
-        reportSheet.getRange(foundRow, nextIndex + 1).setValue(data.next || '');
-        reportSheet.getRange(foundRow, commentIndex + 1).setValue(data.comment || '');
-        reportSheet.getRange(foundRow, statusIndex + 1).setValue(data.status);
-        reportSheet.getRange(foundRow, updatedAtIndex + 1).setValue(now);
+        // ★★★ 修正: 更新用データ行を生成（より安全な方法） ★★★
+        var rowData = new Array(reportSheet.getLastColumn()).fill('');
         
-        // 登録日がある場合は更新
+        // 既存の値をコピー
+        for (var j = 0; j < reportData[foundRow].length; j++) {
+          rowData[j] = reportData[foundRow][j];
+        }
+        
+        // 必要なフィールドだけを更新
+        rowData[yIndex] = data.y;
+        rowData[wIndex] = data.w;
+        rowData[tIndex] = data.t;
+        rowData[nextIndex] = data.next || '';
+        rowData[commentIndex] = data.comment || '';
+        rowData[statusIndex] = data.status;
+        rowData[updatedAtIndex] = now;
+        
+        // 登録日が含まれていれば設定（更新時も報告日を変更可能に）
         if (reportDateIndex !== -1 && data.reportDate) {
           try {
             var reportDate = new Date(data.reportDate);
-            reportSheet.getRange(foundRow, reportDateIndex + 1).setValue(reportDate);
+            rowData[reportDateIndex] = reportDate;
+            Logger.log('登録日を更新: ' + reportDate);
           } catch (e) {
-            Logger.log('登録日の変換エラー: ' + e.toString());
+            Logger.log('登録日解析エラー: ' + e.toString());
           }
         }
+        
+        // 1行だけを更新
+        reportSheet.getRange(foundRow + 1, 1, 1, rowData.length).setValues([rowData]);
+        Logger.log('更新完了: ID=' + data.id + ', 行=' + (foundRow + 1));
         
         // キャッシュを削除
         var cache = CacheService.getScriptCache();
         cache.remove('report_' + data.id);
         
         // 公開ステータスで通知が必要か確認
-        if (data.status === '公開' && reportData[foundRow - 1][statusIndex] !== '公開') {
+        if (data.status === '公開' && reportData[foundRow][statusIndex] !== '公開') {
           try {
             sendNotifications(data.id);
+            Logger.log('通知送信完了');
           } catch (e) {
             Logger.log('通知送信エラー: ' + e.toString());
           }
         }
         
-        Logger.log('更新完了: ID=' + data.id);
         return {success: true, id: data.id, updated: true};
       } else {
         // IDが指定されているが一致するレコードが見つからない場合
         Logger.log('エラー: 指定されたID「' + data.id + '」の日報が見つかりません');
+        Logger.log('全レコード数: ' + (reportData.length - 1)); // ヘッダー行を除く
         return {success: false, message: '指定されたIDの日報が見つかりません。'};
       }
     } 
@@ -433,18 +466,18 @@ function saveReport(data) {
       var id = Utilities.getUuid();
       var user = Session.getActiveUser().getEmail();
       
-      // 新しい行のデータ配列を作成
-      var newRowData = new Array(headers.length).fill('');
+      // 新しい行のデータを作成
+      var newRowData = new Array(reportSheet.getLastColumn()).fill('');
       
       newRowData[idIndex] = id;
       newRowData[createdAtIndex] = now;
       newRowData[authorIndex] = user;
-      newRowData[yIndex] = data.y || '';
-      newRowData[wIndex] = data.w || '';
-      newRowData[tIndex] = data.t || '';
+      newRowData[yIndex] = data.y;
+      newRowData[wIndex] = data.w;
+      newRowData[tIndex] = data.t;
       newRowData[nextIndex] = data.next || '';
       newRowData[commentIndex] = data.comment || '';
-      newRowData[statusIndex] = data.status || '下書き';
+      newRowData[statusIndex] = data.status;
       newRowData[updatedAtIndex] = now;
       
       // 登録日が含まれていれば設定
@@ -452,30 +485,34 @@ function saveReport(data) {
         try {
           var reportDate = data.reportDate ? new Date(data.reportDate) : now;
           newRowData[reportDateIndex] = reportDate;
+          Logger.log('登録日を設定: ' + reportDate);
         } catch (e) {
           newRowData[reportDateIndex] = now;
-          Logger.log('登録日の変換エラー: ' + e.toString());
+          Logger.log('登録日解析エラー: ' + e.toString());
         }
       }
       
-      // 一度に新規行を追加
+      // 新規行を追加
       reportSheet.appendRow(newRowData);
+      Logger.log('新規作成完了: ID=' + id);
       
       // 公開ステータスなら通知を送信
       if (data.status === '公開') {
         try {
           sendNotifications(id);
+          Logger.log('通知送信完了');
         } catch (e) {
           Logger.log('通知送信エラー: ' + e.toString());
         }
       }
       
-      Logger.log('新規作成完了: ID=' + id);
       return {success: true, id: id, created: true};
     }
   } catch (e) {
     Logger.log('日報保存エラー: ' + e.toString() + '\nスタックトレース: ' + e.stack);
     return {success: false, message: 'エラーが発生しました: ' + e.message};
+  } finally {
+    Logger.log('=========== saveReport 終了 ===========');
   }
 }
 
