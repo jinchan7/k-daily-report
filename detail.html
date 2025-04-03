@@ -607,7 +607,7 @@
 // 2. 白画面問題の修正
 // 3. エラーハンドリングの強化
 
-// コメント送信処理（完全修正版）
+// コメント送信処理（安全性向上版）
 function submitComment() {
   var contentElement = document.getElementById('newCommentContent');
   var submitButton = document.getElementById('submitComment');
@@ -638,7 +638,7 @@ function submitComment() {
     時刻: new Date().toLocaleString()
   });
   
-  // 通知表示関数
+// 通知表示関数
   function showMessage(message, type) {
     // 既存の通知を削除
     var existingMessages = document.querySelectorAll('.status-message');
@@ -734,8 +734,8 @@ function submitComment() {
       submitButton.textContent = 'コメントを投稿';
       submitButton.disabled = false;
       
-      // 成功判定の緩和（successがfalseでなければ成功と見なす）
-      if (result && result.success !== false) {
+      // 成功判定の明確化
+      if (result && result.success === true) {
         // 入力欄をクリア
         contentElement.value = '';
         
@@ -750,7 +750,7 @@ function submitComment() {
             var baseUrl = currentUrl.split('?')[0];
             var newUrl = baseUrl + '?action=detail&id=' + data.reportId;
             
-            // ヒストリーAPIを使ってナビゲーション履歴を残す
+            // ページ遷移
             window.location.href = newUrl;
           } catch(e) {
             console.error('画面更新エラー:', e);
