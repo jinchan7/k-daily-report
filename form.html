@@ -908,5 +908,252 @@ window.addEventListener('DOMContentLoaded', function() {
   }
 });
   </script>
+  <!-- コメント機能強化スクリプト -->
+<script>
+  // DOMが読み込まれたら実行
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('コメント機能強化スクリプト初期化');
+    
+    // コメント送信ボタンを強化
+    var submitCommentBtn = document.getElementById('submitComment');
+    if (submitCommentBtn) {
+      console.log('コメント送信ボタンを検出');
+      
+      // 既存のイベントリスナーを上書き
+      submitCommentBtn.onclick = function(e) {
+        e.preventDefault();
+        enhancedSubmitComment();
+      };
+    }
+    
+    // 返信送信ボタンを強化
+    var submitReplyButtons = document.querySelectorAll('.submit-reply');
+    if (submitReplyButtons.length > 0) {
+      console.log('返信ボタン数:', submitReplyButtons.length);
+      
+      submitReplyButtons.forEach(function(button) {
+        // 既存のイベントリスナーを上書き
+        button.onclick = function(e) {
+          e.preventDefault();
+          enhancedSubmitReply(this);
+        };
+      });
+    }
+    
+    // コメントフォームを強化
+    var commentForm = document.getElementById('commentForm');
+    if (commentForm) {
+      commentForm.onsubmit = function(e) {
+        e.preventDefault();
+        enhancedSubmitComment();
+      };
+    }
+  });
+  
+  // 強化版コメント送信処理
+  function enhancedSubmitComment() {
+    console.log('強化版コメント送信処理を開始');
+    
+    var contentElement = document.getElementById('newCommentContent');
+    var submitButton = document.getElementById('submitComment');
+    
+    if (!contentElement || !submitButton) {
+      console.error('コメント要素が見つかりません');
+      return;
+    }
+    
+    // 入力値の検証
+    var content = contentElement.value.trim();
+    if (!content) {
+      alert('コメントを入力してください');
+      return;
+    }
+    
+    // 送信中表示
+    submitButton.disabled = true;
+    submitButton.textContent = '送信中...';
+    
+    // ステータス表示エリア
+    var statusArea = document.getElementById('commentStatus');
+    if (statusArea) {
+      statusArea.style.display = 'block';
+      statusArea.className = 'alert mb-2 alert-info';
+      statusArea.textContent = 'コメントを送信中...';
+    }
+    
+    // 送信データ
+    var reportId = document.querySelector('form#commentForm').getAttribute('data-report-id') || 
+                  '<?= report ? report.id : "" ?>';
+    
+    var data = {
+      reportId: reportId,
+      content: content
+    };
+    
+    // タイムアウト処理
+    var timeoutId = setTimeout(function() {
+      if (statusArea) {
+        statusArea.className = 'alert mb-2 alert-warning';
+        statusArea.textContent = '処理に時間がかかっています...';
+      }
+    }, 5000);
+    
+    // サーバーへ送信
+    google.script.run
+      .withSuccessHandler(function(result) {
+        clearTimeout(timeoutId);
+        console.log('コメント送信結果:', result);
+        
+        if (result && result.success !== false) {
+          // 成功
+          if (statusArea) {
+            statusArea.className = 'alert mb-2 alert-success';
+            statusArea.textContent = 'コメントを投稿しました';
+          }
+          
+          // 入力欄をクリア
+          contentElement.value = '';
+          
+          // 3秒後にページをリロード
+          setTimeout(function() {
+            window.location.reload();
+          }, 3000);
+        } else {
+          // 失敗
+          if (statusArea) {
+            statusArea.className = 'alert mb-2 alert-danger';
+            statusArea.textContent = 'エラー: ' + (result && result.message ? result.message : '不明なエラー');
+          }
+          
+          // ボタンを元に戻す
+          submitButton.disabled = false;
+          submitButton.textContent = 'コメントを投稿';
+        }
+      })
+      .withFailureHandler(function(error) {
+        clearTimeout(timeoutId);
+        console.error('コメント送信エラー:', error);
+        
+        if (statusArea) {
+          statusArea.className = 'alert mb-2 alert-danger';
+          statusArea.textContent = 'エラー: ' + (error.message || '通信エラーが発生しました');
+        }
+        
+        // ボタンを元に戻す
+        submitButton.disabled = false;
+        submitButton.textContent = 'コメントを投稿';
+      })
+      .saveComment(data);
+  }
+  
+  // 強化版返信送信処理
+  function enhancedSubmitReply(button) {
+    if (!button) {
+      console.error('返信ボタンが指定されていません');
+      return;
+    }
+    
+    var replyForm = button.closest('.reply-form');
+    if (!replyForm) {
+      console.error('返信フォームが見つかりません');
+      return;
+    }
+    
+    var textarea = replyForm.querySelector('textarea');
+    if (!textarea) {
+      console.error('返信入力欄が見つかりません');
+      return;
+    }
+    
+    // 入力値の検証
+    var content = textarea.value.trim();
+    if (!content) {
+      alert('返信を入力してください');
+      return;
+    }
+    
+    // 親コメントIDの取得
+    var parentId = replyForm.getAttribute('data-parent-id');
+    if (!parentId) {
+      console.error('親コメントIDが見つかりません');
+      return;
+    }
+    
+    // 送信中表示
+    button.disabled = true;
+    button.textContent = '送信中...';
+    
+    // 状態表示エリア
+    var statusArea = document.getElementById('replyStatus-' + parentId);
+    if (statusArea) {
+      statusArea.style.display = 'block';
+      statusArea.className = 'alert mb-2 alert-info';
+      statusArea.textContent = '返信を送信中...';
+    }
+    
+    // 送信データ
+    var reportId = '<?= report ? report.id : "" ?>';
+    var data = {
+      reportId: reportId,
+      parentId: parentId,
+      content: content
+    };
+    
+    // タイムアウト処理
+    var timeoutId = setTimeout(function() {
+      if (statusArea) {
+        statusArea.className = 'alert mb-2 alert-warning';
+        statusArea.textContent = '処理に時間がかかっています...';
+      }
+    }, 5000);
+    
+    // サーバーへ送信
+    google.script.run
+      .withSuccessHandler(function(result) {
+        clearTimeout(timeoutId);
+        console.log('返信送信結果:', result);
+        
+        if (result && result.success !== false) {
+          // 成功
+          if (statusArea) {
+            statusArea.className = 'alert mb-2 alert-success';
+            statusArea.textContent = '返信を投稿しました';
+          }
+          
+          // 入力欄をクリア
+          textarea.value = '';
+          
+          // 3秒後にページをリロード
+          setTimeout(function() {
+            window.location.reload();
+          }, 3000);
+        } else {
+          // 失敗
+          if (statusArea) {
+            statusArea.className = 'alert mb-2 alert-danger';
+            statusArea.textContent = 'エラー: ' + (result && result.message ? result.message : '不明なエラー');
+          }
+          
+          // ボタンを元に戻す
+          button.disabled = false;
+          button.textContent = '返信を送信';
+        }
+      })
+      .withFailureHandler(function(error) {
+        clearTimeout(timeoutId);
+        console.error('返信送信エラー:', error);
+        
+        if (statusArea) {
+          statusArea.className = 'alert mb-2 alert-danger';
+          statusArea.textContent = 'エラー: ' + (error.message || '通信エラーが発生しました');
+        }
+        
+        // ボタンを元に戻す
+        button.disabled = false;
+        button.textContent = '返信を送信';
+      })
+      .saveComment(data);
+  }
+</script>
 </body>
 </html>
