@@ -344,11 +344,6 @@ function isAdmin(email) {
 }
 
 // 完全修正版 saveReport 関数
-// 編集時に新規レコードが作成される問題を修正した saveReport 関数
-// 修正ポイント1: IDの厳密な検証
-// 修正ポイント2: 更新時のデータ処理を改善
-// 修正ポイント3: デバッグ情報の詳細化
-
 function saveReport(data) {
   try {
     var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -368,17 +363,11 @@ function saveReport(data) {
     var commentIndex = headers.indexOf('感想等');
     var statusIndex = headers.indexOf('ステータス');
     var updatedAtIndex = headers.indexOf('最終更新日時');
+    var reportDateIndex = headers.indexOf('登録日');
     
     // デバッグログを詳細に出力
     Logger.log('保存処理開始: ID=' + (data.id || '新規') + 
               ', 作成者=' + Session.getActiveUser().getEmail());
-    
-    // HTMLエスケープ処理
-    data.y = escapeHtml(data.y || '');
-    data.w = escapeHtml(data.w || '');
-    data.t = escapeHtml(data.t || '');
-    data.next = escapeHtml(data.next || '');
-    data.comment = escapeHtml(data.comment || '');
     
     // === 編集（更新）の場合 ===
     if (data.id && data.id.trim() !== '') {
@@ -388,36 +377,40 @@ function saveReport(data) {
       // IDでレコードを厳密に検索
       for (var i = 1; i < reportData.length; i++) {
         if (reportData[i][idIndex] === data.id) {
-          foundRow = i;
+          foundRow = i + 1; // スプレッドシートは1始まり
           break;
         }
       }
       
       // レコードが見つかった場合
       if (foundRow !== -1) {
-        Logger.log('更新対象レコード検出: 行=' + (foundRow + 1));
+        Logger.log('更新対象レコード検出: 行=' + foundRow);
         
-        // 更新用データ行を生成
-        var rowData = reportData[foundRow].slice(); // 既存行のコピーを作成
+        // 各フィールドを個別に更新
+        reportSheet.getRange(foundRow, yIndex + 1).setValue(data.y || '');
+        reportSheet.getRange(foundRow, wIndex + 1).setValue(data.w || '');
+        reportSheet.getRange(foundRow, tIndex + 1).setValue(data.t || '');
+        reportSheet.getRange(foundRow, nextIndex + 1).setValue(data.next || '');
+        reportSheet.getRange(foundRow, commentIndex + 1).setValue(data.comment || '');
+        reportSheet.getRange(foundRow, statusIndex + 1).setValue(data.status);
+        reportSheet.getRange(foundRow, updatedAtIndex + 1).setValue(now);
         
-        // 必要なフィールドだけを更新
-        rowData[yIndex] = data.y;
-        rowData[wIndex] = data.w;
-        rowData[tIndex] = data.t;
-        rowData[nextIndex] = data.next || '';
-        rowData[commentIndex] = data.comment || '';
-        rowData[statusIndex] = data.status;
-        rowData[updatedAtIndex] = now;
-        
-        // 1行だけを更新
-        reportSheet.getRange(foundRow + 1, 1, 1, rowData.length).setValues([rowData]);
+        // 登録日がある場合は更新
+        if (reportDateIndex !== -1 && data.reportDate) {
+          try {
+            var reportDate = new Date(data.reportDate);
+            reportSheet.getRange(foundRow, reportDateIndex + 1).setValue(reportDate);
+          } catch (e) {
+            Logger.log('登録日の変換エラー: ' + e.toString());
+          }
+        }
         
         // キャッシュを削除
         var cache = CacheService.getScriptCache();
         cache.remove('report_' + data.id);
         
         // 公開ステータスで通知が必要か確認
-        if (data.status === '公開' && reportData[foundRow][statusIndex] !== '公開') {
+        if (data.status === '公開' && reportData[foundRow - 1][statusIndex] !== '公開') {
           try {
             sendNotifications(data.id);
           } catch (e) {
@@ -439,32 +432,32 @@ function saveReport(data) {
       var id = Utilities.getUuid();
       var user = Session.getActiveUser().getEmail();
       
-      // 新しい行のデータを作成（最適化済み）
-      var newRowData = new Array(reportSheet.getLastColumn()).fill('');
+      // 新しい行のデータ配列を作成
+      var newRowData = new Array(headers.length).fill('');
       
       newRowData[idIndex] = id;
       newRowData[createdAtIndex] = now;
       newRowData[authorIndex] = user;
-      newRowData[yIndex] = data.y;
-      newRowData[wIndex] = data.w;
-      newRowData[tIndex] = data.t;
+      newRowData[yIndex] = data.y || '';
+      newRowData[wIndex] = data.w || '';
+      newRowData[tIndex] = data.t || '';
       newRowData[nextIndex] = data.next || '';
       newRowData[commentIndex] = data.comment || '';
-      newRowData[statusIndex] = data.status;
+      newRowData[statusIndex] = data.status || '下書き';
       newRowData[updatedAtIndex] = now;
       
       // 登録日が含まれていれば設定
-      var reportDateIndex = headers.indexOf('登録日');
       if (reportDateIndex !== -1) {
         try {
           var reportDate = data.reportDate ? new Date(data.reportDate) : now;
           newRowData[reportDateIndex] = reportDate;
         } catch (e) {
           newRowData[reportDateIndex] = now;
+          Logger.log('登録日の変換エラー: ' + e.toString());
         }
       }
       
-      // 新規行を追加
+      // 一度に新規行を追加
       reportSheet.appendRow(newRowData);
       
       // 公開ステータスなら通知を送信
@@ -483,61 +476,6 @@ function saveReport(data) {
     Logger.log('日報保存エラー: ' + e.toString() + '\nスタックトレース: ' + e.stack);
     return {success: false, message: 'エラーが発生しました: ' + e.message};
   }
-}
-
-// IDで日報を取得（登録日対応版）
-function getReportById(id) {
-  // キャッシュから取得を試みる（パフォーマンス改善）
-  var cache = CacheService.getScriptCache();
-  var cachedReport = cache.get('report_' + id);
-  
-  if (cachedReport) {
-    return JSON.parse(cachedReport);
-  }
-  
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  var reportSheet = ss.getSheetByName(SHEET_NAMES.DAILY_REPORT);
-  var reportData = reportSheet.getDataRange().getValues();
-  var headers = reportData[0];
-  
-  // ヘッダー行のインデックスを取得
-  var idIndex = headers.indexOf('ID');
-  var createdAtIndex = headers.indexOf('作成日時');
-  var authorIndex = headers.indexOf('作成者');
-  var yIndex = headers.indexOf('やったこと(Y)');
-  var wIndex = headers.indexOf('わかったこと(W)');
-  var tIndex = headers.indexOf('つぎやること(T)');
-  var nextIndex = headers.indexOf('明日やること');
-  var commentIndex = headers.indexOf('感想等');
-  var statusIndex = headers.indexOf('ステータス');
-  var updatedAtIndex = headers.indexOf('最終更新日時');
-  var reportDateIndex = headers.indexOf('登録日');
-  
-  // ヘッダーをスキップして検索
-  for (var i = 1; i < reportData.length; i++) {
-    if (reportData[i][idIndex] === id) {
-      // 使いやすい形式に変換 - インデックスを使用して明示的にマッピング
-      var report = {
-        id: reportData[i][idIndex],
-        createdAt: reportData[i][createdAtIndex],
-        author: reportData[i][authorIndex],
-        reportDate: reportDateIndex !== -1 ? reportData[i][reportDateIndex] : reportData[i][createdAtIndex], // 登録日があればそれを使用
-        y: reportData[i][yIndex],
-        w: reportData[i][wIndex],
-        t: reportData[i][tIndex],
-        next: reportData[i][nextIndex],
-        comment: reportData[i][commentIndex],
-        status: reportData[i][statusIndex],
-        updatedAt: reportData[i][updatedAtIndex]
-      };
-      
-      // 結果をキャッシュに保存（パフォーマンス改善）
-      cache.put('report_' + id, JSON.stringify(report), CACHE_EXPIRATION);
-      
-      return report;
-    }
-  }
-  return null;
 }
 
 // 日報一覧を取得（検索条件あり）- 登録日対応版
@@ -676,12 +614,7 @@ function sendNotifications(reportId) {
   }
 }
 
-// コメントを保存（改善版）
-// コメント保存問題を解決するための修正版 saveComment 関数
-// 修正ポイント1: リクエストの厳密な検証
-// 修正ポイント2: エスケープ処理の改善
-// 修正ポイント3: 明示的な応答オブジェクト
-
+// 改善版 saveComment 関数
 function saveComment(data) {
   try {
     // 重要: コメント保存処理のデバッグログを詳細に出力
@@ -731,25 +664,14 @@ function saveComment(data) {
     var escapedContent = escapeHtml(data.content);
     
     try {
-      // アトミックな操作: 1行をまとめて追加
+      // 一行ずつ新しい値を設定（セーフティ対策）
       var lastRow = commentSheet.getLastRow() + 1;
-      var rowValues = [];
-      
-      // カラム数分の空の配列を作成
-      for (var i = 0; i < commentSheet.getLastColumn(); i++) {
-        rowValues[i] = '';
-      }
-      
-      // 必要なカラムにだけ値を設定
-      rowValues[idCol - 1] = id;
-      rowValues[reportIdCol - 1] = data.reportId;
-      rowValues[parentIdCol - 1] = parentId;
-      rowValues[authorCol - 1] = user;
-      rowValues[contentCol - 1] = escapedContent;
-      rowValues[createdAtCol - 1] = now;
-      
-      // まとめて行を追加
-      commentSheet.getRange(lastRow, 1, 1, rowValues.length).setValues([rowValues]);
+      commentSheet.getRange(lastRow, idCol).setValue(id);
+      commentSheet.getRange(lastRow, reportIdCol).setValue(data.reportId);
+      commentSheet.getRange(lastRow, parentIdCol).setValue(parentId);
+      commentSheet.getRange(lastRow, authorCol).setValue(user);
+      commentSheet.getRange(lastRow, contentCol).setValue(escapedContent);
+      commentSheet.getRange(lastRow, createdAtCol).setValue(now);
       
       // キャッシュを明示的に削除
       var cache = CacheService.getScriptCache();
@@ -790,7 +712,6 @@ function saveComment(data) {
     };
   }
 }
-
 // 日報IDに基づいてコメントを取得
 function getCommentsByReportId(reportId) {
   try {
