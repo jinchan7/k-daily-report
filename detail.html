@@ -245,9 +245,9 @@
       width: 12px;
       height: 12px;
       margin-left: 8px;
-      border: 2px solid rgba(255,255,255,0.5);
+      border: 2px solid rgba(255,255,255,0.3);
       border-radius: 50%;
-      border-top-color: white;
+      border-top: 4px solid white;
       animation: spin 1s linear infinite;
       vertical-align: middle;
     }
@@ -263,28 +263,12 @@
       top: 20px;
       right: 20px;
       padding: 10px 15px;
-      background-color: #28a745;
-      color: white;
       border-radius: 4px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      opacity: 0;
-      transform: translateY(-20px);
-      transition: all 0.3s ease;
+      color: white;
+      background-color: rgba(0, 0, 0, 0.8);
       z-index: 1000;
-    }
-    
-    .notification.error {
-      background-color: #dc3545;
-    }
-    
-    .notification.warning {
-      background-color: #ffc107;
-      color: #212529;
-    }
-    
-    .notification.show {
-      opacity: 1;
-      transform: translateY(0);
+      display: none;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
     
     /* ユーティリティ */
@@ -329,7 +313,6 @@
         margin-left: 15px;
       }
     }
-  </style>
   <script>
   // ページロード完了時のフラグ
   window.pageFullyLoaded = false;
@@ -459,8 +442,8 @@
         <? } ?>
       </div>
     </div>
-    
-    <!-- コメントセクション -->
+
+<!-- コメントセクション -->
     <div class="comments-section">
       <h3>コメント</h3>
       
@@ -548,7 +531,7 @@
   <!-- 通知表示用の要素 -->
   <div id="notification" class="notification"></div>
 
-  <script>
+<script>
     // ======= ユーティリティ関数 =======
     
     // デバッグログ出力
@@ -599,229 +582,238 @@
         .replace(/'/g, "&#039;");
     }
     
-    // ======= コメント機能（完全修正版）=======
-    
-// detail.html のコメント送信と返信機能の完全修正版
-// 修正ポイント: 
-// 1. タイムアウト処理
-// 2. 白画面問題の修正
-// 3. エラーハンドリングの強化
-
-// コメント送信処理（安全性向上版）
-function submitComment() {
-  var contentElement = document.getElementById('newCommentContent');
-  var submitButton = document.getElementById('submitComment');
-  
-  // 入力値の検証
-  var content = contentElement.value.trim();
-  if (!content) {
-    alert('コメントを入力してください');
-    return;
-  }
-  
-  // ボタンの状態を送信中に変更
-  submitButton.textContent = '送信中...';
-  submitButton.disabled = true;
-  
-  // 送信内容のバックアップ（エラー時に復元用）
-  var originalContent = content;
-  
-  // 送信データ準備
-  var data = {
-    reportId: '<?= report.id ?>',
-    content: content
-  };
-  
-  console.log('コメント送信開始:', {
-    reportId: data.reportId,
-    contentLength: content.length,
-    時刻: new Date().toLocaleString()
-  });
-  
-// 通知表示関数
-  function showMessage(message, type) {
-    // 既存の通知を削除
-    var existingMessages = document.querySelectorAll('.status-message');
-    existingMessages.forEach(function(msg) {
-      if (document.body.contains(msg)) {
-        document.body.removeChild(msg);
-      }
-    });
-    
-    // 新しい通知を作成
-    var messageDiv = document.createElement('div');
-    messageDiv.className = 'status-message ' + (type || 'info');
-    messageDiv.textContent = message;
-    messageDiv.style.position = 'fixed';
-    messageDiv.style.top = '20px';
-    messageDiv.style.left = '50%';
-    messageDiv.style.transform = 'translateX(-50%)';
-    messageDiv.style.padding = '10px 20px';
-    messageDiv.style.borderRadius = '4px';
-    messageDiv.style.zIndex = '9999';
-    
-    // タイプに応じたスタイル
-    if (type === 'error') {
-      messageDiv.style.backgroundColor = '#dc3545';
-      messageDiv.style.color = 'white';
-    } else if (type === 'success') {
-      messageDiv.style.backgroundColor = '#28a745';
-      messageDiv.style.color = 'white';
-    } else if (type === 'warning') {
-      messageDiv.style.backgroundColor = '#ffc107';
-      messageDiv.style.color = '#212529';
-    } else {
-      messageDiv.style.backgroundColor = '#007bff';
-      messageDiv.style.color = 'white';
-    }
-    
-    document.body.appendChild(messageDiv);
-    
-    // 一定時間後に消す（errorやwarningは長め）
-    var timeout = (type === 'error' || type === 'warning') ? 8000 : 3000;
-    setTimeout(function() {
-      if (document.body.contains(messageDiv)) {
-        document.body.removeChild(messageDiv);
-      }
-    }, timeout);
-    
-    return messageDiv;
-  }
-  
-  // 応答タイムアウト処理（サーバーからの応答が遅い場合）
-  var responseTimeout = setTimeout(function() {
-    console.log('応答タイムアウト');
-    
-    // 送信が長時間完了しない場合（8秒）
-    showMessage('応答待ちタイムアウト。処理は続行中です...', 'warning');
-    
-    // ボタンを元に戻す
-    submitButton.textContent = 'コメントを投稿';
-    submitButton.disabled = false;
-    
-    // 別のタイムアウトを設定（5秒後）
-    setTimeout(function() {
-      if (confirm('最新の情報を取得するために画面を更新しますか？\n（コメントは保存されている可能性があります）')) {
-        try {
-          // 更新前にローカルストレージでコメント内容を保持（白画面対策）
-          localStorage.setItem('pendingComment', originalContent);
-          localStorage.setItem('commentTarget', data.reportId);
-          localStorage.setItem('commentTimestamp', new Date().getTime());
-          
-          // 安全な画面更新
-          window.location.href = window.location.href.split('?')[0] + 
-                               '?action=detail&id=' + data.reportId;
-        } catch (e) {
-          console.error('画面更新エラー:', e);
-          showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
-        }
-      } else {
-        // 元の内容を復元
-        contentElement.value = originalContent;
-      }
-    }, 5000);
-  }, 8000);
-  
-  // サーバーへ送信
-  google.script.run
-    .withSuccessHandler(function(result) {
-      // タイムアウトをクリア
-      clearTimeout(responseTimeout);
-      
-      console.log('サーバー応答:', result);
-      
-      // ボタンを元に戻す
-      submitButton.textContent = 'コメントを投稿';
-      submitButton.disabled = false;
-      
-      // 成功判定の明確化
-      if (result && result.success === true) {
-        // 入力欄をクリア
-        contentElement.value = '';
+    // 安全なページ遷移関数
+    function navigateTo(action, id) {
+      try {
+        // 基本URLの取得
+        var baseUrl = window.location.href.split('?')[0];
+        var url = baseUrl;
         
-        // 成功通知
-        showMessage('コメントを投稿しました', 'success');
-        
-        // 3秒後に安全に画面更新
-        setTimeout(function() {
-          try {
-            // 明示的なURLの再構築
-            var currentUrl = window.location.href;
-            var baseUrl = currentUrl.split('?')[0];
-            var newUrl = baseUrl + '?action=detail&id=' + data.reportId;
-            
-            // ページ遷移
-            window.location.href = newUrl;
-          } catch(e) {
-            console.error('画面更新エラー:', e);
-            showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
+        // パラメータの構築
+        if (action) {
+          url += '?action=' + encodeURIComponent(action);
+          if (id) {
+            url += '&id=' + encodeURIComponent(id);
           }
-        }, 3000);
-      } else {
-        // エラー表示
-        var errorMessage = result && result.message ? 
-                         result.message : 
-                         '不明なエラーが発生しました';
-        showMessage('エラー: ' + errorMessage, 'error');
+        }
         
-        // どのような場合でも更新を提案
+        console.log('遷移先URL:', url);
+        window.location.href = url;
+      } catch (e) {
+        console.error('ページ遷移エラー:', e);
+        alert('ページ遷移に失敗しました。もう一度試すか、ページを手動で更新してください。');
+      }
+    }
+
+  // ======= コメント関連の処理 =======
+    
+    // コメント送信処理
+    function submitComment() {
+      var contentElement = document.getElementById('newCommentContent');
+      var submitButton = document.getElementById('submitComment');
+      
+      // 入力値の検証
+      var content = contentElement.value.trim();
+      if (!content) {
+        alert('コメントを入力してください');
+        return;
+      }
+      
+      // ボタンの状態を送信中に変更
+      submitButton.textContent = '送信中...';
+      submitButton.disabled = true;
+      
+      // 送信内容のバックアップ（エラー時に復元用）
+      var originalContent = content;
+      
+      // 送信データ準備
+      var data = {
+        reportId: '<?= report.id ?>',
+        content: content
+      };
+      
+      console.log('コメント送信開始:', {
+        reportId: data.reportId,
+        contentLength: content.length,
+        時刻: new Date().toLocaleString()
+      });
+      
+      // 通知表示関数
+      function showMessage(message, type) {
+        // 既存の通知を削除
+        var existingMessages = document.querySelectorAll('.status-message');
+        existingMessages.forEach(function(msg) {
+          if (document.body.contains(msg)) {
+            document.body.removeChild(msg);
+          }
+        });
+        
+        // 新しい通知を作成
+        var messageDiv = document.createElement('div');
+        messageDiv.className = 'status-message ' + (type || 'info');
+        messageDiv.textContent = message;
+        messageDiv.style.position = 'fixed';
+        messageDiv.style.top = '20px';
+        messageDiv.style.left = '50%';
+        messageDiv.style.transform = 'translateX(-50%)';
+        messageDiv.style.padding = '10px 20px';
+        messageDiv.style.borderRadius = '4px';
+        messageDiv.style.zIndex = '9999';
+        
+        // タイプに応じたスタイル
+        if (type === 'error') {
+          messageDiv.style.backgroundColor = '#dc3545';
+          messageDiv.style.color = 'white';
+        } else if (type === 'success') {
+          messageDiv.style.backgroundColor = '#28a745';
+          messageDiv.style.color = 'white';
+        } else if (type === 'warning') {
+          messageDiv.style.backgroundColor = '#ffc107';
+          messageDiv.style.color = '#212529';
+        } else {
+          messageDiv.style.backgroundColor = '#007bff';
+          messageDiv.style.color = 'white';
+        }
+        
+        document.body.appendChild(messageDiv);
+        
+        // 一定時間後に消す（errorやwarningは長め）
+        var timeout = (type === 'error' || type === 'warning') ? 8000 : 3000;
         setTimeout(function() {
-          if (confirm('最新情報を確認するためにページを更新しますか？')) {
+          if (document.body.contains(messageDiv)) {
+            document.body.removeChild(messageDiv);
+          }
+        }, timeout);
+        
+        return messageDiv;
+      }
+
+
+      // 応答タイムアウト処理（サーバーからの応答が遅い場合）
+      var responseTimeout = setTimeout(function() {
+        console.log('応答タイムアウト');
+        
+        // 送信が長時間完了しない場合（8秒）
+        showMessage('応答待ちタイムアウト。処理は続行中です...', 'warning');
+        
+        // ボタンを元に戻す
+        submitButton.textContent = 'コメントを投稿';
+        submitButton.disabled = false;
+        
+        // 別のタイムアウトを設定（5秒後）
+        setTimeout(function() {
+          if (confirm('最新の情報を取得するために画面を更新しますか？\n（コメントは保存されている可能性があります）')) {
             try {
               // 更新前にローカルストレージでコメント内容を保持（白画面対策）
               localStorage.setItem('pendingComment', originalContent);
               localStorage.setItem('commentTarget', data.reportId);
               localStorage.setItem('commentTimestamp', new Date().getTime());
               
-              window.location.href = window.location.href.split('?')[0] + 
-                                   '?action=detail&id=' + data.reportId;
+              // 安全な画面更新
+              navigateTo('detail', data.reportId);
             } catch (e) {
               console.error('画面更新エラー:', e);
               showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
             }
+          } else {
+            // 元の内容を復元
+            contentElement.value = originalContent;
           }
-        }, 2000);
-      }
-    })
-    .withFailureHandler(function(error) {
-      // タイムアウトをクリア
-      clearTimeout(responseTimeout);
+        }, 5000);
+      }, 8000);
       
-      console.error('コメント送信エラー:', error);
-      
-      // ボタンを元に戻す
-      submitButton.textContent = 'コメントを投稿';
-      submitButton.disabled = false;
-      
-      // エラー表示
-      showMessage('通信エラーが発生しましたが、コメントは保存されている可能性があります', 'error');
-      
-      // 更新を提案
-      setTimeout(function() {
-        if (confirm('コメントの保存状態を確認するためにページを更新しますか？')) {
-          try {
-            // 更新前にローカルストレージでコメント内容を保持（白画面対策）
-            localStorage.setItem('pendingComment', originalContent);
-            localStorage.setItem('commentTarget', data.reportId);
-            localStorage.setItem('commentTimestamp', new Date().getTime());
+      // サーバーへ送信
+      google.script.run
+        .withSuccessHandler(function(result) {
+          // タイムアウトをクリア
+          clearTimeout(responseTimeout);
+          
+          console.log('サーバー応答:', result);
+          
+          // ボタンを元に戻す
+          submitButton.textContent = 'コメントを投稿';
+          submitButton.disabled = false;
+          
+          // 成功判定の明確化
+          if (result && result.success === true) {
+            // 入力欄をクリア
+            contentElement.value = '';
             
-            // リロード
-            window.location.href = window.location.href.split('?')[0] + 
-                                 '?action=detail&id=' + data.reportId;
-          } catch (e) {
-            console.error('画面更新エラー:', e);
-            showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
+            // 成功通知
+            showMessage('コメントを投稿しました', 'success');
+            
+            // 3秒後に安全に画面更新
+            setTimeout(function() {
+              try {
+                navigateTo('detail', data.reportId);
+              } catch(e) {
+                console.error('画面更新エラー:', e);
+                showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
+              }
+            }, 3000);
+          } else {
+            // エラー表示
+            var errorMessage = result && result.message ? 
+                             result.message : 
+                             '不明なエラーが発生しました';
+            showMessage('エラー: ' + errorMessage, 'error');
+            
+            // どのような場合でも更新を提案
+            setTimeout(function() {
+              if (confirm('最新情報を確認するためにページを更新しますか？')) {
+                try {
+                  // 更新前にローカルストレージでコメント内容を保持（白画面対策）
+                  localStorage.setItem('pendingComment', originalContent);
+                  localStorage.setItem('commentTarget', data.reportId);
+                  localStorage.setItem('commentTimestamp', new Date().getTime());
+                  
+                  navigateTo('detail', data.reportId);
+                } catch (e) {
+                  console.error('画面更新エラー:', e);
+                  showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
+                }
+              }
+            }, 2000);
           }
-        } else {
-          // リロードしなかった場合は元の内容を復元
-          contentElement.value = originalContent;
-        }
-      }, 2000);
-    })
-    .saveComment(data);
-}
-    
-    // 返信を表示
+        })
+        .withFailureHandler(function(error) {
+          // タイムアウトをクリア
+          clearTimeout(responseTimeout);
+          
+          console.error('コメント送信エラー:', error);
+          
+          // ボタンを元に戻す
+          submitButton.textContent = 'コメントを投稿';
+          submitButton.disabled = false;
+          
+          // エラー表示
+          showMessage('通信エラーが発生しましたが、コメントは保存されている可能性があります', 'error');
+          
+          // 更新を提案
+          setTimeout(function() {
+            if (confirm('コメントの保存状態を確認するためにページを更新しますか？')) {
+              try {
+                // 更新前にローカルストレージでコメント内容を保持（白画面対策）
+                localStorage.setItem('pendingComment', originalContent);
+                localStorage.setItem('commentTarget', data.reportId);
+                localStorage.setItem('commentTimestamp', new Date().getTime());
+                
+                // リロード
+                navigateTo('detail', data.reportId);
+              } catch (e) {
+                console.error('画面更新エラー:', e);
+                showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
+              }
+            } else {
+              // リロードしなかった場合は元の内容を復元
+              contentElement.value = originalContent;
+            }
+          }, 2000);
+        })
+        .saveComment(data);
+    }
+
+    // 返信を表示する処理
     function showReplyForm(commentId) {
       log('返信フォーム表示', commentId);
       
@@ -854,390 +846,318 @@ function submitComment() {
       }
     }
     
-// 返信送信処理（修正版）
-function submitReply(button) {
-  var replyForm = button.closest('.reply-form');
-  if (!replyForm) return;
-  
-  var textarea = replyForm.querySelector('textarea');
-  if (!textarea) return;
-  
-  var content = textarea.value.trim();
-  if (!content) {
-    alert('返信を入力してください');
-    return;
-  }
-  
-  var parentId = replyForm.getAttribute('data-parent-id');
-  if (!parentId) {
-    console.error('親コメントIDが見つかりません');
-    return;
-  }
-  
-  // 送信中の表示
-  button.textContent = '送信中...';
-  button.disabled = true;
-  
-  // 送信データ
-  var data = {
-    reportId: '<?= report.id ?>',
-    parentId: parentId,
-    content: content
-  };
-  
-  // 元のコンテンツを保存
-  var originalContent = content;
-  
-  // 通知表示関数
-  function showMessage(message, type) {
-    // 既存の通知を削除
-    var existingMessages = document.querySelectorAll('.status-message');
-    existingMessages.forEach(function(msg) {
-      if (document.body.contains(msg)) {
-        document.body.removeChild(msg);
+    // 返信送信処理
+    function submitReply(button) {
+      var replyForm = button.closest('.reply-form');
+      if (!replyForm) return;
+      
+      var textarea = replyForm.querySelector('textarea');
+      if (!textarea) return;
+      
+      var content = textarea.value.trim();
+      if (!content) {
+        alert('返信を入力してください');
+        return;
       }
-    });
-    
-    // 新しい通知を作成
-    var messageDiv = document.createElement('div');
-    messageDiv.className = 'status-message ' + (type || 'info');
-    messageDiv.textContent = message;
-    messageDiv.style.position = 'fixed';
-    messageDiv.style.top = '20px';
-    messageDiv.style.left = '50%';
-    messageDiv.style.transform = 'translateX(-50%)';
-    messageDiv.style.padding = '10px 20px';
-    messageDiv.style.borderRadius = '4px';
-    messageDiv.style.zIndex = '9999';
-    
-    // タイプに応じたスタイル
-    if (type === 'error') {
-      messageDiv.style.backgroundColor = '#dc3545';
-      messageDiv.style.color = 'white';
-    } else if (type === 'success') {
-      messageDiv.style.backgroundColor = '#28a745';
-      messageDiv.style.color = 'white';
-    } else if (type === 'warning') {
-      messageDiv.style.backgroundColor = '#ffc107';
-      messageDiv.style.color = '#212529';
-    } else {
-      messageDiv.style.backgroundColor = '#007bff';
-      messageDiv.style.color = 'white';
-    }
-    
-    document.body.appendChild(messageDiv);
-    
-    // 一定時間後に消す（errorやwarningは長め）
-    var timeout = (type === 'error' || type === 'warning') ? 8000 : 3000;
-    setTimeout(function() {
-      if (document.body.contains(messageDiv)) {
-        document.body.removeChild(messageDiv);
+      
+      var parentId = replyForm.getAttribute('data-parent-id');
+      if (!parentId) {
+        console.error('親コメントIDが見つかりません');
+        return;
       }
-    }, timeout);
-    
-    return messageDiv;
-  }
-  
-  // 応答タイムアウト処理
-  var responseTimeout = setTimeout(function() {
-    console.log('返信応答タイムアウト');
-    
-    // 送信が長時間完了しない場合（8秒）
-    showMessage('応答待ちタイムアウト。処理は続行中です...', 'warning');
-    
-    // ボタンを元に戻す
-    button.textContent = '返信を送信';
-    button.disabled = false;
-    
-    // フォームを一旦非表示
-    replyForm.style.display = 'none';
-    
-    // 別のタイムアウトを設定（5秒後）
-    setTimeout(function() {
-      if (confirm('最新の情報を取得するために画面を更新しますか？\n（返信は保存されている可能性があります）')) {
-        try {
-          // 更新前にローカルストレージでコメント内容を保持（白画面対策）
-          localStorage.setItem('pendingReply', originalContent);
-          localStorage.setItem('replyParent', parentId);
-          localStorage.setItem('replyTimestamp', new Date().getTime());
-          
-          // 安全な画面更新
-          window.location.href = window.location.href.split('?')[0] + 
-                               '?action=detail&id=' + data.reportId;
-        } catch (e) {
-          console.error('画面更新エラー:', e);
-          showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
-          
-          // フォームを再表示
-          replyForm.style.display = 'block';
+      
+      // 送信中の表示
+      button.textContent = '送信中...';
+      button.disabled = true;
+      
+      // 送信データ
+      var data = {
+        reportId: '<?= report.id ?>',
+        parentId: parentId,
+        content: content
+      };
+      
+      // 元のコンテンツを保存
+      var originalContent = content;
+      
+      // 通知表示関数
+      function showMessage(message, type) {
+        // 既存の通知を削除
+        var existingMessages = document.querySelectorAll('.status-message');
+        existingMessages.forEach(function(msg) {
+          if (document.body.contains(msg)) {
+            document.body.removeChild(msg);
+          }
+        });
+        
+        // 新しい通知を作成
+        var messageDiv = document.createElement('div');
+        messageDiv.className = 'status-message ' + (type || 'info');
+        messageDiv.textContent = message;
+        messageDiv.style.position = 'fixed';
+        messageDiv.style.top = '20px';
+        messageDiv.style.left = '50%';
+        messageDiv.style.transform = 'translateX(-50%)';
+        messageDiv.style.padding = '10px 20px';
+        messageDiv.style.borderRadius = '4px';
+        messageDiv.style.zIndex = '9999';
+        
+        // タイプに応じたスタイル
+        if (type === 'error') {
+          messageDiv.style.backgroundColor = '#dc3545';
+          messageDiv.style.color = 'white';
+        } else if (type === 'success') {
+          messageDiv.style.backgroundColor = '#28a745';
+          messageDiv.style.color = 'white';
+        } else if (type === 'warning') {
+          messageDiv.style.backgroundColor = '#ffc107';
+          messageDiv.style.color = '#212529';
+        } else {
+          messageDiv.style.backgroundColor = '#007bff';
+          messageDiv.style.color = 'white';
         }
-      } else {
-        // フォームを再表示して元の内容を復元
-        replyForm.style.display = 'block';
-        textarea.value = originalContent;
+        
+        document.body.appendChild(messageDiv);
+        
+        // 一定時間後に消す（errorやwarningは長め）
+        var timeout = (type === 'error' || type === 'warning') ? 8000 : 3000;
+        setTimeout(function() {
+          if (document.body.contains(messageDiv)) {
+            document.body.removeChild(messageDiv);
+          }
+        }, timeout);
+        
+        return messageDiv;
       }
-    }, 5000);
-  }, 8000);
-  
-  // サーバーへ送信
-  google.script.run
-    .withSuccessHandler(function(result) {
-      // タイムアウトをクリア
-      clearTimeout(responseTimeout);
-      
-      console.log('返信送信結果:', result);
-      
-      // ボタンを元に戻す
-      button.textContent = '返信を送信';
-      button.disabled = false;
-      
-      // 成功判定の緩和
-      if (result && result.success !== false) {
-        // 入力欄をクリアして非表示
-        textarea.value = '';
+
+      // 応答タイムアウト処理
+      var responseTimeout = setTimeout(function() {
+        console.log('返信応答タイムアウト');
+        
+        // 送信が長時間完了しない場合（8秒）
+        showMessage('応答待ちタイムアウト。処理は続行中です...', 'warning');
+        
+        // ボタンを元に戻す
+        button.textContent = '返信を送信';
+        button.disabled = false;
+        
+        // フォームを一旦非表示
         replyForm.style.display = 'none';
         
-        // 成功通知
-        showMessage('返信を投稿しました', 'success');
-        
-        // 3秒後に安全に画面更新
+        // 別のタイムアウトを設定（5秒後）
         setTimeout(function() {
-          try {
-            // 明示的なURLの再構築
-            var currentUrl = window.location.href;
-            var baseUrl = currentUrl.split('?')[0];
-            var newUrl = baseUrl + '?action=detail&id=' + data.reportId;
-            
-            // ヒストリーAPIを使ってナビゲーション履歴を残す
-            window.location.href = newUrl;
-          } catch(e) {
-            console.error('画面更新エラー:', e);
-            showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
-          }
-        }, 3000);
-      } else {
-        // エラー表示
-        var errorMessage = result && result.message ? 
-                         result.message : 
-                         '不明なエラーが発生しました';
-        showMessage('エラー: ' + errorMessage, 'error');
-        
-        // どのような場合でも更新を提案
-        setTimeout(function() {
-          if (confirm('最新情報を確認するためにページを更新しますか？')) {
+          if (confirm('最新の情報を取得するために画面を更新しますか？\n（返信は保存されている可能性があります）')) {
             try {
               // 更新前にローカルストレージでコメント内容を保持（白画面対策）
               localStorage.setItem('pendingReply', originalContent);
               localStorage.setItem('replyParent', parentId);
               localStorage.setItem('replyTimestamp', new Date().getTime());
               
-              window.location.href = window.location.href.split('?')[0] + 
-                                   '?action=detail&id=' + data.reportId;
+              // 安全な画面更新
+              navigateTo('detail', data.reportId);
             } catch (e) {
               console.error('画面更新エラー:', e);
               showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
+              
+              // フォームを再表示
+              replyForm.style.display = 'block';
             }
           } else {
-            // キャンセルした場合はフォームを表示して元の内容を復元
+            // フォームを再表示して元の内容を復元
             replyForm.style.display = 'block';
             textarea.value = originalContent;
           }
-        }, 2000);
-      }
-    })
-    .withFailureHandler(function(error) {
-      // タイムアウトをクリア
-      clearTimeout(responseTimeout);
+        }, 5000);
+      }, 8000);
       
-      console.error('返信送信エラー:', error);
-      
-      // ボタンを元に戻す
-      button.textContent = '返信を送信';
-      button.disabled = false;
-      
-      // エラー表示
-      showMessage('通信エラーが発生しましたが、返信は保存されている可能性があります', 'error');
-      
-      // 更新を提案
-      setTimeout(function() {
-        if (confirm('返信の保存状態を確認するためにページを更新しますか？')) {
-          try {
-            // 更新前にローカルストレージでコメント内容を保持（白画面対策）
-            localStorage.setItem('pendingReply', originalContent);
-            localStorage.setItem('replyParent', parentId);
-            localStorage.setItem('replyTimestamp', new Date().getTime());
+      // サーバーへ送信
+      google.script.run
+        .withSuccessHandler(function(result) {
+          // タイムアウトをクリア
+          clearTimeout(responseTimeout);
+          
+          console.log('返信送信結果:', result);
+          
+          // ボタンを元に戻す
+          button.textContent = '返信を送信';
+          button.disabled = false;
+          
+          // 成功判定の明確化
+          if (result && result.success === true) {
+            // 入力欄をクリアして非表示
+            textarea.value = '';
+            replyForm.style.display = 'none';
             
-            // リロード
-            window.location.href = window.location.href.split('?')[0] + 
-                                 '?action=detail&id=' + data.reportId;
-          } catch (e) {
-            console.error('画面更新エラー:', e);
-            showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
+            // 成功通知
+            showMessage('返信を投稿しました', 'success');
+            
+            // 3秒後に安全に画面更新
+            setTimeout(function() {
+              try {
+                navigateTo('detail', data.reportId);
+              } catch(e) {
+                console.error('画面更新エラー:', e);
+                showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
+              }
+            }, 3000);
+          } else {
+            // エラー表示
+            var errorMessage = result && result.message ? 
+                             result.message : 
+                             '不明なエラーが発生しました';
+            showMessage('エラー: ' + errorMessage, 'error');
+            
+            // どのような場合でも更新を提案
+            setTimeout(function() {
+              if (confirm('最新情報を確認するためにページを更新しますか？')) {
+                try {
+                  // 更新前にローカルストレージでコメント内容を保持（白画面対策）
+                  localStorage.setItem('pendingReply', originalContent);
+                  localStorage.setItem('replyParent', parentId);
+                  localStorage.setItem('replyTimestamp', new Date().getTime());
+                  
+                  navigateTo('detail', data.reportId);
+                } catch (e) {
+                  console.error('画面更新エラー:', e);
+                  showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
+                }
+              } else {
+                // キャンセルした場合はフォームを表示して元の内容を復元
+                replyForm.style.display = 'block';
+                textarea.value = originalContent;
+              }
+            }, 2000);
           }
-        } else {
-          // リロードしなかった場合はフォームを表示して元の内容を復元
-          replyForm.style.display = 'block';
-          textarea.value = originalContent;
-        }
-      }, 2000);
-    })
-    .saveComment(data);
-}
-
-// ページロード時に未送信のコメント/返信がある場合に復元
-function checkPendingComments() {
-  try {
-    var currentReportId = '<?= report.id ?>';
-    var currentTime = new Date().getTime();
-    var cutoffTime = currentTime - (30 * 60 * 1000); // 30分以内のコメントのみ復元
-    
-    // 未送信コメントの確認
-    var pendingComment = localStorage.getItem('pendingComment');
-    var commentTarget = localStorage.getItem('commentTarget');
-    var commentTimestamp = localStorage.getItem('commentTimestamp');
-    
-    if (pendingComment && commentTarget === currentReportId && commentTimestamp > cutoffTime) {
-      // コメント入力欄に復元
-      var contentElement = document.getElementById('newCommentContent');
-      if (contentElement) {
-        contentElement.value = pendingComment;
-        
-        // 通知を表示
-        var messageDiv = document.createElement('div');
-        messageDiv.textContent = '前回入力中のコメントを復元しました';
-        messageDiv.style.backgroundColor = '#17a2b8';
-        messageDiv.style.color = 'white';
-        messageDiv.style.padding = '8px 15px';
-        messageDiv.style.borderRadius = '4px';
-        messageDiv.style.marginBottom = '15px';
-        
-        var container = contentElement.closest('.card-body');
-        if (container) {
-          container.insertBefore(messageDiv, container.firstChild);
+        })
+        .withFailureHandler(function(error) {
+          // タイムアウトをクリア
+          clearTimeout(responseTimeout);
           
-          // 5秒後に通知を消す
+          console.error('返信送信エラー:', error);
+          
+          // ボタンを元に戻す
+          button.textContent = '返信を送信';
+          button.disabled = false;
+          
+          // エラー表示
+          showMessage('通信エラーが発生しましたが、返信は保存されている可能性があります', 'error');
+          
+          // 更新を提案
           setTimeout(function() {
-            if (container.contains(messageDiv)) {
-              container.removeChild(messageDiv);
+            if (confirm('返信の保存状態を確認するためにページを更新しますか？')) {
+              try {
+                // 更新前にローカルストレージでコメント内容を保持（白画面対策）
+                localStorage.setItem('pendingReply', originalContent);
+                localStorage.setItem('replyParent', parentId);
+                localStorage.setItem('replyTimestamp', new Date().getTime());
+                
+                // リロード
+                navigateTo('detail', data.reportId);
+              } catch (e) {
+                console.error('画面更新エラー:', e);
+                showMessage('画面更新に失敗しました。手動で更新してください。', 'error');
+              }
+            } else {
+              // リロードしなかった場合はフォームを表示して元の内容を復元
+              replyForm.style.display = 'block';
+              textarea.value = originalContent;
             }
-          }, 5000);
-        }
-      }
-      
-      // ストレージから削除
-      localStorage.removeItem('pendingComment');
-      localStorage.removeItem('commentTarget');
-      localStorage.removeItem('commentTimestamp');
+          }, 2000);
+        })
+        .saveComment(data);
     }
     
-    // 未送信返信の確認
-    var pendingReply = localStorage.getItem('pendingReply');
-    var replyParent = localStorage.getItem('replyParent');
-    var replyTimestamp = localStorage.getItem('replyTimestamp');
-    
-    if (pendingReply && replyParent && replyTimestamp > cutoffTime) {
-      // 対象の返信フォームを探して表示
-      var replyForm = document.querySelector('.reply-form[data-parent-id="' + replyParent + '"]');
-      if (replyForm) {
-        var textarea = replyForm.querySelector('textarea');
-        if (textarea) {
-          // 返信フォームを表示して内容を復元
-          replyForm.style.display = 'block';
-          textarea.value = pendingReply;
-          textarea.focus();
-          
-          // 通知を表示
-          var messageDiv = document.createElement('div');
-          messageDiv.textContent = '前回入力中の返信を復元しました';
-          messageDiv.style.backgroundColor = '#17a2b8';
-          messageDiv.style.color = 'white';
-          messageDiv.style.padding = '8px 15px';
-          messageDiv.style.borderRadius = '4px';
-          messageDiv.style.marginBottom = '10px';
-          
-          replyForm.insertBefore(messageDiv, replyForm.firstChild);
-          
-          // 5秒後に通知を消す
-          setTimeout(function() {
-            if (replyForm.contains(messageDiv)) {
-              replyForm.removeChild(messageDiv);
+    // ページロード時に未送信のコメント/返信がある場合に復元
+    function checkPendingComments() {
+      try {
+        var currentReportId = '<?= report.id ?>';
+        var currentTime = new Date().getTime();
+        var cutoffTime = currentTime - (30 * 60 * 1000); // 30分以内のコメントのみ復元
+        
+        // 未送信コメントの確認
+        var pendingComment = localStorage.getItem('pendingComment');
+        var commentTarget = localStorage.getItem('commentTarget');
+        var commentTimestamp = localStorage.getItem('commentTimestamp');
+        
+        if (pendingComment && commentTarget === currentReportId && commentTimestamp > cutoffTime) {
+          // コメント入力欄に復元
+          var contentElement = document.getElementById('newCommentContent');
+          if (contentElement) {
+            contentElement.value = pendingComment;
+            
+            // 通知を表示
+            var messageDiv = document.createElement('div');
+            messageDiv.textContent = '前回入力中のコメントを復元しました';
+            messageDiv.style.backgroundColor = '#17a2b8';
+            messageDiv.style.color = 'white';
+            messageDiv.style.padding = '8px 15px';
+            messageDiv.style.borderRadius = '4px';
+            messageDiv.style.marginBottom = '15px';
+            
+            var container = contentElement.closest('.card-body');
+            if (container) {
+              container.insertBefore(messageDiv, container.firstChild);
+              
+              // 5秒後に通知を消す
+              setTimeout(function() {
+                if (container.contains(messageDiv)) {
+                  container.removeChild(messageDiv);
+                }
+              }, 5000);
             }
-          }, 5000);
+          }
+          
+          // ストレージから削除
+          localStorage.removeItem('pendingComment');
+          localStorage.removeItem('commentTarget');
+          localStorage.removeItem('commentTimestamp');
         }
+        
+        // 未送信返信の確認
+        var pendingReply = localStorage.getItem('pendingReply');
+        var replyParent = localStorage.getItem('replyParent');
+        var replyTimestamp = localStorage.getItem('replyTimestamp');
+        
+        if (pendingReply && replyParent && replyTimestamp > cutoffTime) {
+          // 対象の返信フォームを探して表示
+          var replyForm = document.querySelector('.reply-form[data-parent-id="' + replyParent + '"]');
+          if (replyForm) {
+            var textarea = replyForm.querySelector('textarea');
+            if (textarea) {
+              // 返信フォームを表示して内容を復元
+              replyForm.style.display = 'block';
+              textarea.value = pendingReply;
+              textarea.focus();
+              
+              // 通知を表示
+              var messageDiv = document.createElement('div');
+              messageDiv.textContent = '前回入力中の返信を復元しました';
+              messageDiv.style.backgroundColor = '#17a2b8';
+              messageDiv.style.color = 'white';
+              messageDiv.style.padding = '8px 15px';
+              messageDiv.style.borderRadius = '4px';
+              messageDiv.style.marginBottom = '10px';
+              
+              replyForm.insertBefore(messageDiv, replyForm.firstChild);
+              
+              // 5秒後に通知を消す
+              setTimeout(function() {
+                if (replyForm.contains(messageDiv)) {
+                  replyForm.removeChild(messageDiv);
+                }
+              }, 5000);
+            }
+          }
+          
+          // ストレージから削除
+          localStorage.removeItem('pendingReply');
+          localStorage.removeItem('replyParent');
+          localStorage.removeItem('replyTimestamp');
+        }
+      } catch (e) {
+        console.error('未送信コメント確認エラー:', e);
       }
-      
-      // ストレージから削除
-      localStorage.removeItem('pendingReply');
-      localStorage.removeItem('replyParent');
-      localStorage.removeItem('replyTimestamp');
     }
-  } catch (e) {
-    console.error('未送信コメント確認エラー:', e);
-  }
-}
-
-// ページロード時に初期化
-document.addEventListener('DOMContentLoaded', function() {
-  // コメント送信ボタンのイベントリスナー
-  var submitButton = document.getElementById('submitComment');
-  if (submitButton) {
-    submitButton.addEventListener('click', submitComment);
-  }
-  
-  // 返信ボタンのイベントリスナー
-  var replyButtons = document.querySelectorAll('.reply-button');
-  replyButtons.forEach(function(button) {
-    button.addEventListener('click', function() {
-      var commentId = this.getAttribute('data-comment-id');
-      
-      // すべての返信フォームを非表示
-      document.querySelectorAll('.reply-form').forEach(function(form) {
-        form.style.display = 'none';
-      });
-      
-      // 対象の返信フォームを表示
-      var targetForm = document.querySelector('.reply-form[data-parent-id="' + commentId + '"]');
-      if (targetForm) {
-        targetForm.style.display = 'block';
-        var textarea = targetForm.querySelector('textarea');
-        if (textarea) textarea.focus();
-      }
-    });
-  });
-  
-  // 返信送信ボタンのイベントリスナー
-  var submitReplyButtons = document.querySelectorAll('.submit-reply');
-  submitReplyButtons.forEach(function(button) {
-    button.addEventListener('click', function() {
-      submitReply(this);
-    });
-  });
-  
-  // 返信キャンセルボタンのイベントリスナー
-  var cancelReplyButtons = document.querySelectorAll('.cancel-reply');
-  cancelReplyButtons.forEach(function(button) {
-    button.addEventListener('click', function() {
-      var replyForm = this.closest('.reply-form');
-      if (replyForm) {
-        replyForm.style.display = 'none';
-        var textarea = replyForm.querySelector('textarea');
-        if (textarea) textarea.value = '';
-      }
-    });
-  });
-  
-  // フォーム送信イベントの処理
-  var commentForm = document.getElementById('commentForm');
-  if (commentForm) {
-    commentForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      submitComment();
-    });
-  }
-  
-  // 未送信コメントの確認
-  checkPendingComments();
-});
     
     // ======= イベントリスナー設定 =======
     
@@ -1284,6 +1204,26 @@ document.addEventListener('DOMContentLoaded', function() {
           submitReply(this);
         });
       }
+      
+      // 未送信コメントの確認
+      checkPendingComments();
+      
+      // 白画面チェック
+      setTimeout(function() {
+        var container = document.querySelector('.container');
+        var commentsList = document.getElementById('commentsList');
+        
+        // メインコンテンツや必須要素が空かどうかチェック
+        if (container && (!commentsList || commentsList.children.length === 0)) {
+          console.warn('コンテンツが正しく表示されていない可能性があります。');
+          
+          // ユーザーに確認
+          if (confirm('ページの読み込みに問題が発生した可能性があります。再読み込みしますか？')) {
+            // 現在のIDを使って安全に再読み込み
+            navigateTo('detail', '<?= report.id ?>');
+          }
+        }
+      }, 2000); // 2秒後にチェック
       
       log('コメント機能初期化完了');
     }
