@@ -323,6 +323,73 @@
   <div id="toast" class="toast"></div>
 
   <script>
+  // showMessage関数の定義（form.htmlの<script>タグ内の先頭に追加）
+
+// メッセージ表示関数
+function showMessage(message, type, duration) {
+  // 既存のメッセージを削除
+  var existingMessages = document.querySelectorAll('.status-message');
+  existingMessages.forEach(function(msg) {
+    if (document.body.contains(msg)) {
+      document.body.removeChild(msg);
+    }
+  });
+  
+  // 新しいメッセージ要素を作成
+  var messageElement = document.createElement('div');
+  messageElement.className = 'status-message ' + (type || 'info');
+  
+  // タイプに応じたスタイルを設定
+  if (type === 'error') {
+    messageElement.style.backgroundColor = '#dc3545';
+    messageElement.style.color = 'white';
+  } else if (type === 'success') {
+    messageElement.style.backgroundColor = '#28a745';
+    messageElement.style.color = 'white';
+  } else if (type === 'warning') {
+    messageElement.style.backgroundColor = '#ffc107';
+    messageElement.style.color = '#212529';
+  } else if (type === 'loading') {
+    messageElement.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    messageElement.style.color = 'white';
+  } else {
+    messageElement.style.backgroundColor = '#007bff';
+    messageElement.style.color = 'white';
+  }
+  
+  // 位置とスタイルを設定
+  messageElement.style.position = 'fixed';
+  messageElement.style.top = '50%';
+  messageElement.style.left = '50%';
+  messageElement.style.transform = 'translate(-50%, -50%)';
+  messageElement.style.padding = '15px 20px';
+  messageElement.style.borderRadius = '5px';
+  messageElement.style.zIndex = '1000';
+  messageElement.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+  messageElement.style.textAlign = 'center';
+  
+  // メッセージコンテンツを設定
+  if (type === 'loading') {
+    messageElement.innerHTML = message + '<div class="spinner" style="margin-top:10px;"></div>';
+  } else {
+    messageElement.textContent = message;
+  }
+  
+  // DOMに追加
+  document.body.appendChild(messageElement);
+  
+  // タイプが'loading'でなければ自動的に消去するタイマーを設定
+  if (type !== 'loading') {
+    setTimeout(function() {
+      if (document.body.contains(messageElement)) {
+        document.body.removeChild(messageElement);
+      }
+    }, duration || 3000); // デフォルトは3秒
+  }
+  
+  return messageElement;
+}
+    
     // フォーム送信処理の改善版
     document.addEventListener('DOMContentLoaded', function() {
       var form = document.getElementById('reportForm');
