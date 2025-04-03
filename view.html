@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>新任職員日報システム</title>
+  <style>
+    /* 基本スタイル */
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      line-height: 1.6;
+    }
+    
+    /* ヘッダー */
+    .header {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 0;
+      margin: 0 0 20px 0;
+    }
+    
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 15px;
+    }
+    
+    .header-title {
+      font-weight: bold;
+      font-size: 18px;
+      margin: 0;
+    }
+    
+    .header-nav a {
+      color: white;
+      text-decoration: none;
+      margin: 0 10px;
+    }
+    
+    /* メインコンテンツ */
+    .container {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 15px;
+    }
+    
+    /* カード */
+    .card {
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    
+    .card-header {
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+      font-weight: bold;
+    }
+    
+    .card-body {
+      padding: 15px;
+    }
+    
+    /* フォーム */
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    .form-control {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    
+    /* ボタン */
+    .btn {
+      display: inline-block;
+      font-weight: 400;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: middle;
+      user-select: none;
+      border: 1px solid transparent;
+      padding: .375rem .75rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      border-radius: .25rem;
+      cursor: pointer;
+    }
+    
+    .btn-primary {
+      color: #fff;
+      background-color: #007bff;
+      border-color: #007bff;
+    }
+    
+    .btn-secondary {
+      color: #fff;
+      background-color: #6c757d;
+      border-color: #6c757d;
+    }
+    
+    .btn-sm {
+      padding: .25rem .5rem;
+      font-size: .875rem;
+      line-height: 1.5;
+      border-radius: .2rem;
+    }
+    
+    /* テーブル */
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th,
+    .table td {
+      padding: 12px 8px;
+      border-bottom: 1px solid #dee2e6;
+    }
+    
+    .table th {
+      text-align: left;
+      background-color: #f8f9fa;
+    }
+    
+    /* ユーティリティ */
+    .d-flex {
+      display: flex;
+    }
+    
+    .justify-content-between {
+      justify-content: space-between;
+    }
+    
+    .align-items-center {
+      align-items: center;
+    }
+    
+    .mb-3 {
+      margin-bottom: 1rem;
+    }
+    
+    .text-center {
+      text-align: center;
+    }
+    
+    /* バッジ */
+    .badge {
+      display: inline-block;
+      padding: .25em .4em;
+      font-size: 75%;
+      font-weight: 700;
+      line-height: 1;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: baseline;
+      border-radius: .25rem;
+    }
+    
+    .badge-success {
+      color: #fff;
+      background-color: #28a745;
+    }
+    
+    .badge-secondary {
+      color: #fff;
+      background-color: #6c757d;
+    }
+    
+    /* フッター */
+    .footer {
+      text-align: center;
+      padding: 20px 0;
+      margin-top: 30px;
+      background-color: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+      color: #6c757d;
+    }
+    
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+      .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .header-nav {
+        margin-top: 10px;
+      }
+      
+      .d-flex {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- シンプルなヘッダー -->
+  <div class="header">
+    <div class="header-content">
+      <h1 class="header-title">新任職員日報システム</h1>
+      <div class="header-nav">
+        <a href="<?= ScriptApp.getService().getUrl() ?>">一覧</a>
+        <? if (canCreate) { ?>
+          <a href="<?= ScriptApp.getService().getUrl() ?>?action=new">新規作成</a>
+        <? } ?>
+        <? if (isAdmin) { ?>
+          <a href="<?= ScriptApp.getService().getUrl() ?>?action=admin">管理画面</a>
+        <? } ?>
+        <span style="margin-left: 15px;"><?= userName ?> (<?= user ?>) としてログイン中</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- 検索フォーム -->
+    <div class="card">
+      <div class="card-header">日報検索</div>
+      <div class="card-body">
+        <form id="searchForm" method="get">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="form-group">
+              <label for="search">キーワード検索</label>
+              <input type="text" class="form-control" id="search" name="search" value="<?= searchParam ?>">
+            </div>
+            <div class="form-group">
+              <label for="author">作成者</label>
+              <input type="text" class="form-control" id="author" name="author" value="<?= authorParam ?>">
+            </div>
+            <div class="form-group">
+              <label for="startDate">開始日</label>
+              <input type="date" class="form-control" id="startDate" name="startDate" value="<?= startDateParam ?>">
+            </div>
+            <div class="form-group">
+              <label for="endDate">終了日</label>
+              <input type="date" class="form-control" id="endDate" name="endDate" value="<?= endDateParam ?>">
+            </div>
+          </div>
+          <div class="text-center" style="margin-top: 15px;">
+            <button type="submit" class="btn btn-primary">検索</button>
+            <button type="button" id="resetSearch" class="btn btn-secondary">リセット</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 日報一覧 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>日報一覧</div>
+          <? if (canCreate) { ?>
+            <a href="<?= ScriptApp.getService().getUrl() ?>?action=new" class="btn btn-primary btn-sm">新規作成</a>
+          <? } ?>
+        </div>
+      </div>
+      <div class="card-body">
+        <? if (errorMessage) { ?>
+          <div style="padding: 15px; background-color: #f8d7da; color: #721c24; border-radius: 4px; margin-bottom: 15px;">
+            <?= errorMessage ?>
+          </div>
+        <? } ?>
+        <? if (reports.length === 0) { ?>
+          <div style="padding: 15px; background-color: #d1ecf1; color: #0c5460; border-radius: 4px;">
+            日報はまだありません。新しい日報を作成してみましょう。
+          </div>
+        <? } else { ?>
+          <div style="overflow-x: auto;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>日付</th>
+                  <th>作成者</th>
+                  <th>ステータス</th>
+                  <th>アクション</th>
+                </tr>
+              </thead>
+              <tbody>
+                <? for (var i = 0; i < reports.length; i++) { 
+                  var report = reports[i]; 
+                ?>
+                  <tr>
+                    <td>
+                      <? try { ?>
+                        <?= report.reportDate ? new Date(report.reportDate).toLocaleDateString('ja-JP') : '日付なし' ?>
+                      <? } catch (e) { ?>
+                        <?= new Date(report.createdAt).toLocaleDateString('ja-JP') ?>
+                      <? } ?>
+                    </td>
+                    <td><?= escapeHtml(getUserDisplayName(report.author)) ?> (<?= escapeHtml(report.author) ?>)</td>
+                    <td>
+                      <span class="badge <?= report.status === '公開' ? 'badge-success' : 'badge-secondary' ?>">
+                        <?= report.status ?>
+                      </span>
+                    </td>
+                    <td>
+                      <a href="<?= ScriptApp.getService().getUrl() ?>?action=detail&id=<?= report.id ?>" class="btn btn-primary btn-sm">詳細</a>
+                      <? if (report.author === user || isAdmin) { ?>
+                        <a href="<?= ScriptApp.getService().getUrl() ?>?action=edit&id=<?= report.id ?>" class="btn btn-secondary btn-sm" style="margin-left: 5px;">編集</a>
+                      <? } ?>
+                    </td>
+                  </tr>
+                <? } ?>
+              </tbody>
+            </table>
+          </div>
+        <? } ?>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    © 2025 新任職員日報システム
+  </div>
+
+  <script>
+    // 検索リセットボタン
+    document.getElementById('resetSearch').addEventListener('click', function() {
+      window.location.href = '<?= ScriptApp.getService().getUrl() ?>';
+    });
+  </script>
+</body>
+</html>
