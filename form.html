@@ -251,7 +251,12 @@
       </div>
       <div class="card-body">
         <form id="reportForm">
-          <?= report ? '<input type="hidden" name="id" value="' + report.id + '">' : '' ?>
+          <? if (report && report.id) { ?>
+          <input type="hidden" name="id" value="<?= report.id ?>">
+          <script>console.log('編集モード - ID: <?= report.id ?>');</script>
+        <? } else { ?>
+          <script>console.log('新規作成モード');</script>
+        <? } ?>
           
           <div class="form-section">
             <h4>日付</h4>
