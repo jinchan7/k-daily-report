@@ -252,11 +252,12 @@
       <div class="card-body">
         <form id="reportForm">
           <? if (report && report.id) { ?>
-          <input type="hidden" name="id" value="<?= report.id ?>">
-          <script>console.log('編集モード - ID: <?= report.id ?>');</script>
-        <? } else { ?>
-          <script>console.log('新規作成モード');</script>
-        <? } ?>
+            <input type="hidden" name="id" value="<?= report.id ?>">
+            <script>console.log('編集モード - ID: <?= report.id ?>');</script>
+          <? } else { ?>
+            <!-- 新規作成時は何も表示しない -->
+            <script>console.log('新規作成モード');</script>
+          <? } ?>
           
           <div class="form-section">
             <h4>日付</h4>
@@ -328,421 +329,288 @@
   <div id="toast" class="toast"></div>
 
   <script>
-  // showMessage関数の定義（form.htmlの<script>タグ内の先頭に追加）
-
-// メッセージ表示関数
-function showMessage(message, type, duration) {
-  // 既存のメッセージを削除
-  var existingMessages = document.querySelectorAll('.status-message');
-  existingMessages.forEach(function(msg) {
-    if (document.body.contains(msg)) {
-      document.body.removeChild(msg);
-    }
-  });
+// フォーム送信時の安全なリダイレクト関数
+function safeRedirect(url) {
+  // URLをエンコード
+  var safeUrl = encodeURI(url);
   
-  // 新しいメッセージ要素を作成
-  var messageElement = document.createElement('div');
-  messageElement.className = 'status-message ' + (type || 'info');
-  
-  // タイプに応じたスタイルを設定
-  if (type === 'error') {
-    messageElement.style.backgroundColor = '#dc3545';
-    messageElement.style.color = 'white';
-  } else if (type === 'success') {
-    messageElement.style.backgroundColor = '#28a745';
-    messageElement.style.color = 'white';
-  } else if (type === 'warning') {
-    messageElement.style.backgroundColor = '#ffc107';
-    messageElement.style.color = '#212529';
-  } else if (type === 'loading') {
-    messageElement.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    messageElement.style.color = 'white';
-  } else {
-    messageElement.style.backgroundColor = '#007bff';
-    messageElement.style.color = 'white';
+  // ローカルストレージにリダイレクト情報を保存（白画面対策）
+  try {
+    localStorage.setItem('lastAction', 'formSubmit');
+    localStorage.setItem('lastActionTime', new Date().getTime());
+  } catch (e) {
+    console.error('ローカルストレージエラー:', e);
   }
   
-  // 位置とスタイルを設定
-  messageElement.style.position = 'fixed';
-  messageElement.style.top = '50%';
-  messageElement.style.left = '50%';
-  messageElement.style.transform = 'translate(-50%, -50%)';
-  messageElement.style.padding = '15px 20px';
-  messageElement.style.borderRadius = '5px';
-  messageElement.style.zIndex = '1000';
-  messageElement.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-  messageElement.style.textAlign = 'center';
-  
-  // メッセージコンテンツを設定
-  if (type === 'loading') {
-    messageElement.innerHTML = message + '<div class="spinner" style="margin-top:10px;"></div>';
-  } else {
-    messageElement.textContent = message;
-  }
-  
-  // DOMに追加
-  document.body.appendChild(messageElement);
-  
-  // タイプが'loading'でなければ自動的に消去するタイマーを設定
-  if (type !== 'loading') {
-    setTimeout(function() {
-      if (document.body.contains(messageElement)) {
-        document.body.removeChild(messageElement);
-      }
-    }, duration || 3000); // デフォルトは3秒
-  }
-  
-  return messageElement;
-}
-    
-    // フォーム送信処理の改善版
-    document.addEventListener('DOMContentLoaded', function() {
-      var form = document.getElementById('reportForm');
-      if (!form) return;
-      
-// ユーティリティ関数
-function log(message, data) {
-  if (data) {
-    console.log(message, data);
-  } else {
-    console.log(message);
-  }
-}
-
-// 通知メッセージを表示
-function showNotification(message, isError, isWarning) {
-  var notificationElement = document.getElementById('notification');
-  if (!notificationElement) {
-    notificationElement = document.createElement('div');
-    notificationElement.id = 'notification';
-    notificationElement.className = 'notification';
-    document.body.appendChild(notificationElement);
-  }
-  
-  // クラスをリセット
-  notificationElement.classList.remove('error', 'warning', 'show');
-  
-  if (isError) {
-    notificationElement.classList.add('error');
-  } else if (isWarning) {
-    notificationElement.classList.add('warning');
-  }
-  
-  notificationElement.textContent = message;
-  notificationElement.classList.add('show');
-  
-  // 5秒後に非表示
+  // 念のためsetTimeoutでリダイレクト
   setTimeout(function() {
-    notificationElement.classList.remove('show');
-  }, 5000);
+    window.location.href = safeUrl;
+  }, 100);
 }
 
-// HTMLエスケープ
-function escapeHtml(text) {
-  if (!text) return '';
-  return String(text)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-// コメント送信処理
-function submitComment() {
-  var contentElement = document.getElementById('newCommentContent');
-  var submitButton = document.getElementById('submitComment');
+// ページロード時の処理
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.getElementById('reportForm');
+  if (!form) return;
   
-  if (!contentElement || !submitButton) {
-    console.error('コメント要素が見つかりません');
-    return;
-  }
-  
-  // 入力値の検証
-  var content = contentElement.value.trim();
-  if (!content) {
-    alert('コメントを入力してください');
-    return;
-  }
-  
-  // ボタンの状態を送信中に変更
-  submitButton.textContent = '送信中...';
-  submitButton.disabled = true;
-  
-  // 送信データ準備
-  var reportId = document.querySelector('input[name="reportId"]') ? 
-                document.querySelector('input[name="reportId"]').value : 
-                '<?= report.id ?>';
-  
-  var data = {
-    reportId: reportId,
-    content: content
-  };
-  
-  log('コメント送信開始:', {
-    reportId: data.reportId,
-    contentLength: content.length
+  console.log('フォーム初期化完了', {
+    mode: form.querySelector('input[name="id"]') ? '編集' : '新規作成',
+    id: form.querySelector('input[name="id"]') ? form.querySelector('input[name="id"]').value : 'なし'
   });
   
-  // 状態表示
-  var statusArea = document.getElementById('commentStatus');
-  if (statusArea) {
-    statusArea.style.display = 'block';
-    statusArea.className = 'alert mb-2 alert-info';
-    statusArea.textContent = 'コメントを送信中...';
-  }
-  
-  // サーバーへ送信
-  google.script.run
-    .withSuccessHandler(function(result) {
-      log('サーバー応答:', result);
-      
-      // ボタンを元に戻す
-      submitButton.textContent = 'コメントを投稿';
-      submitButton.disabled = false;
-      
-      if (result && result.success !== false) {
-        // 入力欄をクリア
-        contentElement.value = '';
-        
-        // 成功通知
-        if (statusArea) {
-          statusArea.className = 'alert mb-2 alert-success';
-          statusArea.textContent = 'コメントを投稿しました';
-        }
-        
-        // 3秒後にページをリロード
-        setTimeout(function() {
-          window.location.reload();
-        }, 3000);
+  // フォーム送信処理
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // バリデーション
+    var requiredFields = form.querySelectorAll('[required]');
+    var isValid = true;
+    
+    requiredFields.forEach(function(field) {
+      if (!field.value.trim()) {
+        field.style.borderColor = '#dc3545';
+        isValid = false;
       } else {
-        // エラー表示
-        var errorMessage = result && result.message ? 
-                         result.message : 
-                         '不明なエラーが発生しました';
+        field.style.borderColor = '';
+      }
+    });
+    
+    if (!isValid) {
+      alert('必須項目を入力してください');
+      return;
+    }
+    
+    // 保存中表示
+    var statusMessage = document.createElement('div');
+    statusMessage.className = 'status-message sending';
+    statusMessage.innerHTML = '保存中...<div class="spinner"></div>';
+    statusMessage.style.position = 'fixed';
+    statusMessage.style.top = '50%';
+    statusMessage.style.left = '50%';
+    statusMessage.style.transform = 'translate(-50%, -50%)';
+    statusMessage.style.padding = '20px';
+    statusMessage.style.borderRadius = '5px';
+    statusMessage.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    statusMessage.style.color = 'white';
+    statusMessage.style.zIndex = '1000';
+    document.body.appendChild(statusMessage);
+    
+    // ボタンを無効化
+    var buttons = form.querySelectorAll('button');
+    buttons.forEach(function(button) {
+      button.disabled = true;
+    });
+    
+    // 送信データ収集
+    var formData = {
+      reportDate: form.querySelector('input[name="reportDate"]').value,
+      y: form.querySelector('textarea[name="y"]').value.trim(),
+      w: form.querySelector('textarea[name="w"]').value.trim(),
+      t: form.querySelector('textarea[name="t"]').value.trim(),
+      next: form.querySelector('textarea[name="next"]').value.trim(),
+      comment: form.querySelector('textarea[name="comment"]').value.trim(),
+      status: '公開' // 公開ステータス
+    };
+    
+    // ID値の取得（あれば）
+    var idField = form.querySelector('input[name="id"]');
+    if (idField) {
+      formData.id = idField.value.trim();
+    }
+    
+    console.log('送信データ:', formData);
+    
+    // サーバーへ送信
+    google.script.run
+      .withSuccessHandler(function(result) {
+        console.log('保存結果:', result);
         
-        if (statusArea) {
-          statusArea.className = 'alert mb-2 alert-danger';
-          statusArea.textContent = 'エラー: ' + errorMessage;
+        if (result && result.success) {
+          // 成功メッセージを表示
+          statusMessage.style.backgroundColor = '#28a745';
+          statusMessage.innerHTML = (result.updated ? '日報を更新しました' : '日報を作成しました');
+          
+          // 3秒後に詳細ページへ移動
+          setTimeout(function() {
+            var baseUrl = window.location.href.split('?')[0];
+            var targetUrl = baseUrl + '?action=detail&id=' + encodeURIComponent(result.id);
+            
+            safeRedirect(targetUrl);
+          }, 2000);
+        } else {
+          // エラーメッセージ
+          statusMessage.style.backgroundColor = '#dc3545';
+          statusMessage.innerHTML = 'エラー: ' + (result && result.message ? result.message : '不明なエラー');
+          
+          // ボタンを元に戻す
+          buttons.forEach(function(button) {
+            button.disabled = false;
+          });
+          
+          // 5秒後にメッセージを消す
+          setTimeout(function() {
+            if (document.body.contains(statusMessage)) {
+              document.body.removeChild(statusMessage);
+            }
+          }, 5000);
         }
-      }
-    })
-    .withFailureHandler(function(error) {
-      log('コメント送信エラー:', error);
-      
-      // ボタンを元に戻す
-      submitButton.textContent = 'コメントを投稿';
-      submitButton.disabled = false;
-      
-      // エラー表示
-      if (statusArea) {
-        statusArea.className = 'alert mb-2 alert-danger';
-        statusArea.textContent = 'エラーが発生しました: ' + (error.message || '通信エラー');
-      }
-    })
-    .saveComment(data);
-}
-
-// 返信フォームを表示
-function showReplyForm(commentId) {
-  log('返信フォーム表示:', commentId);
-  
-  // すべての返信フォームを非表示にする
-  var allReplyForms = document.querySelectorAll('.reply-form');
-  for (var i = 0; i < allReplyForms.length; i++) {
-    allReplyForms[i].style.display = 'none';
-  }
-  
-  // 該当するコメントの返信フォームを表示
-  var replyForm = document.querySelector('.reply-form[data-parent-id="' + commentId + '"]');
-  if (replyForm) {
-    replyForm.style.display = 'block';
-    var textarea = replyForm.querySelector('textarea');
-    if (textarea) {
-      textarea.focus();
-    }
-  }
-}
-
-// 返信をキャンセル
-function cancelReply(button) {
-  var replyForm = button.closest('.reply-form');
-  if (replyForm) {
-    replyForm.style.display = 'none';
-    var textarea = replyForm.querySelector('textarea');
-    if (textarea) {
-      textarea.value = '';
-    }
-  }
-}
-
-// 返信送信処理
-function submitReply(button) {
-  // 返信フォームの特定
-  var replyForm = button.closest('.reply-form');
-  if (!replyForm) {
-    log('返信フォームが見つかりません');
-    return;
-  }
-  
-  // テキストエリアの特定
-  var textarea = replyForm.querySelector('textarea');
-  if (!textarea) {
-    log('返信入力欄が見つかりません');
-    return;
-  }
-  
-  // 入力値の検証
-  var content = textarea.value.trim();
-  if (!content) {
-    alert('返信を入力してください');
-    return;
-  }
-  
-  // 親コメントIDの取得
-  var parentId = replyForm.getAttribute('data-parent-id');
-  if (!parentId) {
-    log('親コメントIDが見つかりません');
-    return;
-  }
-  
-  // 送信中の表示
-  button.textContent = '送信中...';
-  button.disabled = true;
-  
-  // 送信データ
-  var reportId = '<?= report.id ?>';
-  var data = {
-    reportId: reportId,
-    parentId: parentId,
-    content: content
-  };
-  
-  log('返信送信開始:', {
-    reportId: data.reportId,
-    parentId: data.parentId,
-    contentLength: content.length
+      })
+      .withFailureHandler(function(error) {
+        console.error('保存エラー:', error);
+        
+        // エラーメッセージ
+        statusMessage.style.backgroundColor = '#dc3545';
+        statusMessage.innerHTML = 'エラー: ' + (error.message || '通信エラーが発生しました');
+        
+        // ボタンを元に戻す
+        buttons.forEach(function(button) {
+          button.disabled = false;
+        });
+        
+        // 5秒後にメッセージを消す
+        setTimeout(function() {
+          if (document.body.contains(statusMessage)) {
+            document.body.removeChild(statusMessage);
+          }
+        }, 5000);
+      })
+      .saveReport(formData);
   });
   
-  // 状態表示エリア
-  var statusId = 'replyStatus-' + parentId;
-  var statusArea = document.getElementById(statusId);
-  
-  if (statusArea) {
-    statusArea.style.display = 'block';
-    statusArea.className = 'alert mb-2 alert-info';
-    statusArea.textContent = '返信を送信中...';
-  }
-  
-  // サーバーへ送信
-  google.script.run
-    .withSuccessHandler(function(result) {
-      log('返信送信結果:', result);
+  // 一時保存ボタンの処理
+  var draftButton = document.getElementById('saveDraft');
+  if (draftButton) {
+    draftButton.addEventListener('click', function() {
+      // フォームデータ収集（最低限の入力で可）
+      var formData = {
+        reportDate: form.querySelector('input[name="reportDate"]').value || new Date().toISOString().split('T')[0],
+        y: form.querySelector('textarea[name="y"]').value.trim() || '(作成中)',
+        w: form.querySelector('textarea[name="w"]').value.trim() || '(作成中)',
+        t: form.querySelector('textarea[name="t"]').value.trim() || '(作成中)',
+        next: form.querySelector('textarea[name="next"]').value.trim(),
+        comment: form.querySelector('textarea[name="comment"]').value.trim(),
+        status: '下書き' // 常に下書きステータス
+      };
       
-      // ボタンを元に戻す
-      button.textContent = '返信を送信';
-      button.disabled = false;
-      
-      if (result && result.success !== false) {
-        // 入力欄をクリアして非表示
-        textarea.value = '';
-        replyForm.style.display = 'none';
-        
-        // 成功通知
-        if (statusArea) {
-          statusArea.className = 'alert mb-2 alert-success';
-          statusArea.textContent = '返信を投稿しました';
-        }
-        
-        // 3秒後にページをリロード
-        setTimeout(function() {
-          window.location.reload();
-        }, 3000);
-      } else {
-        // エラー表示
-        var errorMessage = result && result.message ? 
-                        result.message : 
-                        '不明なエラーが発生しました';
-        
-        if (statusArea) {
-          statusArea.className = 'alert mb-2 alert-danger';
-          statusArea.textContent = 'エラー: ' + errorMessage;
-        }
+      // ID値の取得（あれば）
+      var idField = form.querySelector('input[name="id"]');
+      if (idField) {
+        formData.id = idField.value.trim();
       }
-    })
-    .withFailureHandler(function(error) {
-      log('返信送信エラー:', error);
       
-      // ボタンを元に戻す
-      button.textContent = '返信を送信';
-      button.disabled = false;
+      // 保存中表示
+      var statusMessage = document.createElement('div');
+      statusMessage.className = 'status-message sending';
+      statusMessage.innerHTML = '下書き保存中...<div class="spinner"></div>';
+      statusMessage.style.position = 'fixed';
+      statusMessage.style.top = '50%';
+      statusMessage.style.left = '50%';
+      statusMessage.style.transform = 'translate(-50%, -50%)';
+      statusMessage.style.padding = '20px';
+      statusMessage.style.borderRadius = '5px';
+      statusMessage.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+      statusMessage.style.color = 'white';
+      statusMessage.style.zIndex = '1000';
+      document.body.appendChild(statusMessage);
       
-      // エラー表示
-      if (statusArea) {
-        statusArea.className = 'alert mb-2 alert-danger';
-        statusArea.textContent = 'エラーが発生しました: ' + (error.message || '通信エラー');
-      }
-    })
-    .saveComment(data);
-}
-
-// ページロード時の初期化処理
-function initializeComments() {
-  log('コメント機能初期化開始');
-  
-  // コメント送信ボタン
-  var submitButton = document.getElementById('submitComment');
-  if (submitButton) {
-    submitButton.addEventListener('click', submitComment);
-    log('コメント送信ボタンにイベント設定完了');
-  }
-  
-  // コメントフォーム
-  var commentForm = document.getElementById('commentForm');
-  if (commentForm) {
-    commentForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      submitComment();
+      // ボタンを無効化
+      var buttons = form.querySelectorAll('button');
+      buttons.forEach(function(button) {
+        button.disabled = true;
+      });
+      
+      // サーバーへ送信
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('下書き保存結果:', result);
+          
+          if (result && result.success) {
+            // 成功メッセージを表示
+            statusMessage.style.backgroundColor = '#28a745';
+            statusMessage.innerHTML = '下書きを保存しました';
+            
+            if (!formData.id) {
+              // 新規作成時は編集画面に移動
+              setTimeout(function() {
+                var baseUrl = window.location.href.split('?')[0];
+                var targetUrl = baseUrl + '?action=edit&id=' + encodeURIComponent(result.id);
+                
+                safeRedirect(targetUrl);
+              }, 2000);
+            } else {
+              // 編集時はその場にとどまる
+              setTimeout(function() {
+                if (document.body.contains(statusMessage)) {
+                  document.body.removeChild(statusMessage);
+                }
+                
+                // ボタンを元に戻す
+                buttons.forEach(function(button) {
+                  button.disabled = false;
+                });
+              }, 2000);
+            }
+          } else {
+            // エラーメッセージ
+            statusMessage.style.backgroundColor = '#dc3545';
+            statusMessage.innerHTML = 'エラー: ' + (result && result.message ? result.message : '不明なエラー');
+            
+            // ボタンを元に戻す
+            buttons.forEach(function(button) {
+              button.disabled = false;
+            });
+            
+            // 5秒後にメッセージを消す
+            setTimeout(function() {
+              if (document.body.contains(statusMessage)) {
+                document.body.removeChild(statusMessage);
+              }
+            }, 5000);
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('下書き保存エラー:', error);
+          
+          // エラーメッセージ
+          statusMessage.style.backgroundColor = '#dc3545';
+          statusMessage.innerHTML = 'エラー: ' + (error.message || '通信エラーが発生しました');
+          
+          // ボタンを元に戻す
+          buttons.forEach(function(button) {
+            button.disabled = false;
+          });
+          
+          // 5秒後にメッセージを消す
+          setTimeout(function() {
+            if (document.body.contains(statusMessage)) {
+              document.body.removeChild(statusMessage);
+            }
+          }, 5000);
+        })
+        .saveReport(formData);
     });
-    log('コメントフォームにイベント設定完了');
   }
   
-  // 返信ボタン
-  var replyButtons = document.querySelectorAll('.reply-button');
-  log('返信ボタン数:', replyButtons.length);
-  for (var i = 0; i < replyButtons.length; i++) {
-    replyButtons[i].addEventListener('click', function() {
-      var commentId = this.getAttribute('data-comment-id');
-      showReplyForm(commentId);
-    });
+  // ページロード時に白画面チェック
+  if (document.body.children.length < 5) {
+    console.log('白画面検出：リカバリー実行');
+    
+    // 直前の操作情報を確認
+    var lastAction = localStorage.getItem('lastAction');
+    var lastActionTime = localStorage.getItem('lastActionTime');
+    var currentTime = new Date().getTime();
+    
+    // 30秒以内の操作であればホームページに戻る
+    if (lastAction && lastActionTime && (currentTime - lastActionTime < 30000)) {
+      window.location.href = window.location.href.split('?')[0];
+    }
+  } else {
+    // 正常表示の場合はローカルストレージをクリア
+    localStorage.removeItem('lastAction');
+    localStorage.removeItem('lastActionTime');
   }
-  
-  // 返信キャンセルボタン
-  var cancelButtons = document.querySelectorAll('.cancel-reply');
-  for (var i = 0; i < cancelButtons.length; i++) {
-    cancelButtons[i].addEventListener('click', function() {
-      cancelReply(this);
-    });
-  }
-  
-  // 返信送信ボタン
-  var submitReplyButtons = document.querySelectorAll('.submit-reply');
-  log('返信送信ボタン数:', submitReplyButtons.length);
-  for (var i = 0; i < submitReplyButtons.length; i++) {
-    submitReplyButtons[i].addEventListener('click', function() {
-      submitReply(this);
-    });
-  }
-  
-  log('コメント機能初期化完了');
-}
-
-// DOMロード完了時に初期化
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeComments);
-} else {
-  initializeComments();
-}
+});
+</script>
   </script>
   <!-- コメント機能強化スクリプト -->
 <script>
