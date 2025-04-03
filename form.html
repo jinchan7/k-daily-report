@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>新任職員日報システム</title>
+  <style>
+    /* 基本スタイル */
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      line-height: 1.6;
+    }
+    
+    /* ヘッダー */
+    .header {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 0;
+      margin: 0 0 20px 0;
+    }
+    
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 15px;
+    }
+    
+    .header-title {
+      font-weight: bold;
+      font-size: 18px;
+      margin: 0;
+    }
+    
+    .header-nav a {
+      color: white;
+      text-decoration: none;
+      margin: 0 10px;
+    }
+    
+    /* メインコンテンツ */
+    .container {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 15px;
+    }
+    
+    /* カード */
+    .card {
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    
+    .card-header {
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+      font-weight: bold;
+    }
+    
+    .card-body {
+      padding: 15px;
+    }
+    
+    /* フォーム */
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    .form-control {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    
+    /* フォームセクション */
+    .form-section {
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .form-section h4 {
+      color: #007bff;
+      margin-bottom: 10px;
+    }
+    
+    .form-text {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-top: 5px;
+    }
+    
+    /* ボタン */
+    .btn {
+      display: inline-block;
+      font-weight: 400;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: middle;
+      user-select: none;
+      border: 1px solid transparent;
+      padding: .375rem .75rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      border-radius: .25rem;
+      cursor: pointer;
+    }
+    
+    .btn-primary {
+      color: #fff;
+      background-color: #007bff;
+      border-color: #007bff;
+    }
+    
+    .btn-secondary {
+      color: #fff;
+      background-color: #6c757d;
+      border-color: #6c757d;
+    }
+    
+    .btn-link {
+      color: #007bff;
+      background-color: transparent;
+      border: none;
+      text-decoration: underline;
+    }
+    
+    /* ユーティリティ */
+    .text-center {
+      text-align: center;
+    }
+    
+    .mt-4 {
+      margin-top: 1.5rem;
+    }
+    
+    .mr-2 {
+      margin-right: 0.5rem;
+    }
+    
+    /* フッター */
+    .footer {
+      text-align: center;
+      padding: 20px 0;
+      margin-top: 30px;
+      background-color: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+      color: #6c757d;
+    }
+    
+    /* ステータスメッセージ */
+    .status-message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 20px;
+      border-radius: 5px;
+      color: white;
+      z-index: 1000;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    .status-message.success {
+      background-color: #28a745;
+    }
+    
+    .status-message.error {
+      background-color: #dc3545;
+    }
+    
+    .status-message.warning {
+      background-color: #ffc107;
+      color: #212529;
+    }
+    
+    .status-message.sending {
+      background-color: rgba(0, 0, 0, 0.7);
+    }
+    
+    /* スピナー */
+    .spinner {
+      border: 4px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top: 4px solid white;
+      width: 30px;
+      height: 30px;
+      margin: 10px auto 0;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* 通知 */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 15px 20px;
+      border-radius: 5px;
+      color: white;
+      background-color: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <!-- シンプルなヘッダー -->
+  <div class="header">
+    <div class="header-content">
+      <h1 class="header-title">新任職員日報システム</h1>
+      <div class="header-nav">
+        <a href="<?= ScriptApp.getService().getUrl() ?>">一覧</a>
+        <? if (canCreate) { ?>
+          <a href="<?= ScriptApp.getService().getUrl() ?>?action=new">新規作成</a>
+        <? } ?>
+        <? if (isAdmin) { ?>
+          <a href="<?= ScriptApp.getService().getUrl() ?>?action=admin">管理画面</a>
+        <? } ?>
+        <span style="margin-left: 15px;"><?= userName ?> (<?= user ?>) としてログイン中</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <div class="card-header">
+        <?= report ? '日報の編集' : '新規日報の作成' ?>
+      </div>
+      <div class="card-body">
+        <form id="reportForm">
+          <?= report ? '<input type="hidden" name="id" value="' + report.id + '">' : '' ?>
+          
+          <div class="form-section">
+            <h4>日付</h4>
+            <div class="form-group">
+              <input type="date" class="form-control" name="reportDate" 
+                     value="<?= report && report.reportDate ? new Date(report.reportDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0] ?>" required>
+              <div class="form-text">日報の対象日を指定してください。</div>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <h4>Y（やったこと）</h4>
+            <div class="form-group">
+              <textarea class="form-control" name="y" rows="4" required><?= report ? escapeHtml(report.y) : '' ?></textarea>
+              <div class="form-text">今日行った活動や取り組みを記入してください。</div>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <h4>W（わかったこと）</h4>
+            <div class="form-group">
+              <textarea class="form-control" name="w" rows="4" required><?= report ? escapeHtml(report.w) : '' ?></textarea>
+              <div class="form-text">活動から学んだこと、気づいたことを記入してください。</div>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <h4>T（つぎやること）</h4>
+            <div class="form-group">
+              <textarea class="form-control" name="t" rows="4" required><?= report ? escapeHtml(report.t) : '' ?></textarea>
+              <div class="form-text">学びをふまえて次に取り組むことを記入してください。</div>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <h4>明日やること</h4>
+            <div class="form-group">
+              <textarea class="form-control" name="next" rows="3"><?= report ? escapeHtml(report.next) : '' ?></textarea>
+              <div class="form-text">明日の具体的な計画を記入してください。</div>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <h4>感想等</h4>
+            <div class="form-group">
+              <textarea class="form-control" name="comment" rows="3"><?= report ? escapeHtml(report.comment) : '' ?></textarea>
+              <div class="form-text">その他の感想やコメントがあれば記入してください。</div>
+            </div>
+          </div>
+          
+          <!-- ステータス選択を非表示にし、ボタンで切り替える -->
+          <input type="hidden" name="status" id="statusField" value="<?= report ? report.status : '下書き' ?>">
+          
+          <div class="text-center mt-4">
+            <button type="button" class="btn btn-secondary mr-2" id="saveDraft">一時保存（下書き）</button>
+            <button type="submit" class="btn btn-primary">保存（公開）</button>
+            <a href="<?= ScriptApp.getService().getUrl() ?>" class="btn btn-link">キャンセル</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    © 2025 新任職員日報システム
+  </div>
+
+  <!-- 通知メッセージ -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ユーティリティ関数
+    function showMessage(message, type, duration) {
+      var messageElement = document.createElement('div');
+      messageElement.className = 'status-message ' + type;
+      messageElement.innerHTML = message + (type === 'sending' ? '<div class="spinner"></div>' : '');
+      document.body.appendChild(messageElement);
+      
+      if (type !== 'sending') {
+        setTimeout(function() {
+          document.body.removeChild(messageElement);
+        }, duration || 2000);
+      }
+      
+      return messageElement;
+    }
+    
+    function showToast(message, duration) {
+      var toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.style.display = 'block';
+      
+      setTimeout(function() {
+        toast.style.display = 'none';
+      }, duration || 3000);
+    }
+    
+// form.html の編集フォーム処理修正版
+// 修正ポイント: 
+// 1. ID処理の正確化
+// 2. 送信データの厳密な構築
+// 3. エラー処理とリダイレクトの安全化
+
+// フォーム送信の処理（完全修正版）
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.getElementById('reportForm');
+  if (!form) return;
+  
+  // ログ出力関数
+  function debugLog(message, data) {
+    if (console && console.log) {
+      if (data) {
+        console.log('[日報システム] ' + message, data);
+      } else {
+        console.log('[日報システム] ' + message);
+      }
+    }
+  }
+  
+  // メッセージ表示関数
+  function showMessage(message, type, duration) {
+    // 既存のメッセージを削除
+    var existingMessages = document.querySelectorAll('.message-box');
+    existingMessages.forEach(function(msg) {
+      if (document.body.contains(msg)) {
+        document.body.removeChild(msg);
+      }
+    });
+    
+    var messageBox = document.createElement('div');
+    messageBox.className = 'message-box';
+    messageBox.style.position = 'fixed';
+    messageBox.style.top = '20px';
+    messageBox.style.left = '50%';
+    messageBox.style.transform = 'translateX(-50%)';
+    messageBox.style.padding = '15px 20px';
+    messageBox.style.borderRadius = '4px';
+    messageBox.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+    messageBox.style.zIndex = '9999';
+    messageBox.style.minWidth = '250px';
+    messageBox.style.textAlign = 'center';
+    
+    // タイプに応じたスタイル
+    if (type === 'error') {
+      messageBox.style.backgroundColor = '#dc3545';
+      messageBox.style.color = 'white';
+    } else if (type === 'success') {
+      messageBox.style.backgroundColor = '#28a745';
+      messageBox.style.color = 'white';
+    } else if (type === 'warning') {
+      messageBox.style.backgroundColor = '#ffc107';
+      messageBox.style.color = '#212529';
+    } else if (type === 'loading') {
+      messageBox.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+      messageBox.style.color = 'white';
+      
+      // ロード中はスピナーを追加
+      var spinner = document.createElement('div');
+      spinner.className = 'spinner';
+      spinner.style.display = 'inline-block';
+      spinner.style.width = '20px';
+      spinner.style.height = '20px';
+      spinner.style.border = '3px solid rgba(255,255,255,0.3)';
+      spinner.style.borderRadius = '50%';
+      spinner.style.borderTopColor = 'white';
+      spinner.style.marginLeft = '10px';
+      spinner.style.animation = 'spin 1s linear infinite';
+      
+      // アニメーション用のスタイル
+      var style = document.createElement('style');
+      style.innerHTML = '@keyframes spin {0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}';
+      document.head.appendChild(style);
+      
+      messageBox.textContent = message;
+      messageBox.appendChild(spinner);
+    } else {
+      messageBox.style.backgroundColor = '#007bff';
+      messageBox.style.color = 'white';
+      messageBox.textContent = message;
+    }
+    
+    if (type !== 'loading') {
+      messageBox.textContent = message;
+    }
+    
+    document.body.appendChild(messageBox);
+    
+    // 自動的に消える（loading以外）
+    if (type !== 'loading') {
+      setTimeout(function() {
+        if (document.body.contains(messageBox)) {
+          document.body.removeChild(messageBox);
+        }
+      }, duration || 3000);
+    }
+    
+    return messageBox;
+  }
+  
+  // 保存（公開）ボタンの処理
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // バリデーション
+    var requiredFields = form.querySelectorAll('[required]');
+    var isValid = true;
+    
+    requiredFields.forEach(function(field) {
+      if (!field.value.trim()) {
+        field.style.borderColor = '#dc3545';
+        isValid = false;
+      } else {
+        field.style.borderColor = '';
+      }
+    });
+    
+    if (!isValid) {
+      showMessage('必須項目を入力してください', 'error', 3000);
+      return;
+    }
+    
+    // 現在のIDを取得（存在する場合）
+    var idField = form.querySelector('input[name="id"]');
+    var currentId = idField ? idField.value.trim() : '';
+    
+    // フォームデータ収集
+    var formData = {
+      id: currentId, // IDを正確に渡す
+      reportDate: form.querySelector('input[name="reportDate"]').value,
+      y: form.querySelector('textarea[name="y"]').value.trim(),
+      w: form.querySelector('textarea[name="w"]').value.trim(),
+      t: form.querySelector('textarea[name="t"]').value.trim(),
+      next: form.querySelector('textarea[name="next"]').value.trim(),
+      comment: form.querySelector('textarea[name="comment"]').value.trim(),
+      status: '公開' // 常に公開ステータス
+    };
+    
+    // フォームデータをログ出力
+    debugLog('送信データ', {
+      id: formData.id,
+      mode: formData.id ? '編集' : '新規',
+      reportDate: formData.reportDate,
+      contentLengths: {
+        y: formData.y.length,
+        w: formData.w.length,
+        t: formData.t.length
+      }
+    });
+    
+    // 送信中メッセージ
+    var loadingMessage = showMessage('保存中...', 'loading');
+    
+    // ボタンを無効化
+    var submitBtn = form.querySelector('button[type="submit"]');
+    var draftBtn = document.getElementById('saveDraft');
+    if (submitBtn) submitBtn.disabled = true;
+    if (draftBtn) draftBtn.disabled = true;
+    
+    // 実行ステータス
+    var isProcessing = true;
+    
+    // タイムアウト設定（10秒）
+    var timeoutId = setTimeout(function() {
+      if (isProcessing) {
+        debugLog('保存処理タイムアウト');
+        
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        // タイムアウト通知
+        showMessage('処理に時間がかかっています。そのままお待ちください...', 'warning', 5000);
+        
+        // 15秒後にリダイレクト提案
+        setTimeout(function() {
+          if (isProcessing) {
+            if (confirm('応答がありません。ページを更新しますか？\n（変更は保存されている可能性があります）')) {
+              // 安全なリダイレクト
+              try {
+                if (formData.id) {
+                  // 編集の場合は詳細画面へ
+                  window.location.href = '<?= ScriptApp.getService().getUrl() ?>?action=detail&id=' + formData.id;
+                } else {
+                  // 新規の場合は一覧へ
+                  window.location.href = '<?= ScriptApp.getService().getUrl() ?>';
+                }
+              } catch (e) {
+                debugLog('リダイレクトエラー', e);
+                showMessage('画面遷移に失敗しました。手動でページを更新してください。', 'error', 5000);
+              }
+            } else {
+              // ボタンを元に戻す
+              if (submitBtn) submitBtn.disabled = false;
+              if (draftBtn) draftBtn.disabled = false;
+            }
+          }
+        }, 10000);
+      }
+    }, 10000);
+    
+    // サーバーへ送信
+    google.script.run
+      .withSuccessHandler(function(result) {
+        // 処理状態を更新
+        isProcessing = false;
+        clearTimeout(timeoutId);
+        
+        // ローディング表示を削除
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        // 応答をログ出力
+        debugLog('保存結果', result);
+        
+        if (result && result.success) {
+          showMessage(result.updated ? '日報を更新しました' : '日報を作成しました', 'success', 2000);
+          
+          // 詳細ページへ遷移（2秒後）
+          setTimeout(function() {
+            try {
+              window.location.href = '<?= ScriptApp.getService().getUrl() ?>?action=detail&id=' + result.id;
+            } catch (e) {
+              debugLog('リダイレクトエラー', e);
+              showMessage('画面遷移に失敗しました。', 'error', 3000);
+              
+              // ボタンを元に戻す
+              if (submitBtn) submitBtn.disabled = false;
+              if (draftBtn) draftBtn.disabled = false;
+            }
+          }, 2000);
+        } else {
+          // エラーメッセージ
+          var errorMsg = result && result.message ? result.message : '不明なエラーが発生しました';
+          showMessage('エラー: ' + errorMsg, 'error', 5000);
+          
+          // ボタンを元に戻す
+          if (submitBtn) submitBtn.disabled = false;
+          if (draftBtn) draftBtn.disabled = false;
+        }
+      })
+      .withFailureHandler(function(error) {
+        // 処理状態を更新
+        isProcessing = false;
+        clearTimeout(timeoutId);
+        
+        // ローディング表示を削除
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        // エラーをログ出力
+        debugLog('保存エラー', error);
+        
+        // エラー表示
+        showMessage('エラーが発生しました: ' + (error.message || '不明なエラー'), 'error', 5000);
+        
+        // ボタンを元に戻す
+        if (submitBtn) submitBtn.disabled = false;
+        if (draftBtn) draftBtn.disabled = false;
+      })
+      .saveReport(formData);
+  });
+  
+  // 一時保存ボタンの処理
+  var draftButton = document.getElementById('saveDraft');
+  if (draftButton) {
+    draftButton.addEventListener('click', function() {
+      // 現在のIDを取得（存在する場合）
+      var idField = form.querySelector('input[name="id"]');
+      var currentId = idField ? idField.value.trim() : '';
+      
+      // フォームデータ収集（最低限の入力で可）
+      var formData = {
+        id: currentId, // IDを正確に渡す
+        reportDate: form.querySelector('input[name="reportDate"]').value || new Date().toISOString().split('T')[0],
+        y: form.querySelector('textarea[name="y"]').value.trim() || '(作成中)',
+        w: form.querySelector('textarea[name="w"]').value.trim() || '(作成中)',
+        t: form.querySelector('textarea[name="t"]').value.trim() || '(作成中)',
+        next: form.querySelector('textarea[name="next"]').value.trim(),
+        comment: form.querySelector('textarea[name="comment"]').value.trim(),
+        status: '下書き' // 常に下書きステータス
+      };
+      
+      // フォームデータをログ出力
+      debugLog('下書き送信データ', {
+        id: formData.id,
+        mode: formData.id ? '編集' : '新規',
+        reportDate: formData.reportDate
+      });
+      
+      // 送信中メッセージ
+      var loadingMessage = showMessage('下書き保存中...', 'loading');
+      
+      // ボタンを無効化
+      var submitBtn = form.querySelector('button[type="submit"]');
+      var draftBtn = this;
+      if (submitBtn) submitBtn.disabled = true;
+      if (draftBtn) draftBtn.disabled = true;
+      
+      // 実行ステータス
+      var isProcessing = true;
+      
+      // タイムアウト設定（10秒）
+      var timeoutId = setTimeout(function() {
+        if (isProcessing) {
+          debugLog('下書き保存処理タイムアウト');
+          
+          if (document.body.contains(loadingMessage)) {
+            document.body.removeChild(loadingMessage);
+          }
+          
+          // タイムアウト通知
+          showMessage('処理に時間がかかっています。そのままお待ちください...', 'warning', 5000);
+          
+          // 15秒後にリダイレクト提案
+          setTimeout(function() {
+            if (isProcessing) {
+              if (confirm('応答がありません。ページを更新しますか？\n（変更は保存されている可能性があります）')) {
+                // 安全なリダイレクト
+                try {
+                  if (formData.id) {
+                    // 編集の場合は編集画面に戻る
+                    window.location.href = '<?= ScriptApp.getService().getUrl() ?>?action=edit&id=' + formData.id;
+                  } else {
+                    // 新規の場合は一覧へ
+                    window.location.href = '<?= ScriptApp.getService().getUrl() ?>';
+                  }
+                } catch (e) {
+                  debugLog('リダイレクトエラー', e);
+                  showMessage('画面遷移に失敗しました。手動でページを更新してください。', 'error', 5000);
+                }
+              } else {
+                // ボタンを元に戻す
+                if (submitBtn) submitBtn.disabled = false;
+                if (draftBtn) draftBtn.disabled = false;
+              }
+            }
+          }, 10000);
+        }
+      }, 10000);
+      
+      // サーバーへ送信
+      google.script.run
+        .withSuccessHandler(function(result) {
+          // 処理状態を更新
+          isProcessing = false;
+          clearTimeout(timeoutId);
+          
+          // ローディング表示を削除
+          if (document.body.contains(loadingMessage)) {
+            document.body.removeChild(loadingMessage);
+          }
+          
+          // 応答をログ出力
+          debugLog('下書き保存結果', result);
+          
+          if (result && result.success) {
+            showMessage('下書きを保存しました', 'success', 2000);
+            
+            if (!currentId) {
+              // 新規作成時は編集画面に移動
+              setTimeout(function() {
+                try {
+                  window.location.href = '<?= ScriptApp.getService().getUrl() ?>?action=edit&id=' + result.id;
+                } catch (e) {
+                  debugLog('リダイレクトエラー', e);
+                  showMessage('画面遷移に失敗しました。', 'error', 3000);
+                  
+                  // ボタンを元に戻す
+                  if (submitBtn) submitBtn.disabled = false;
+                  if (draftBtn) draftBtn.disabled = false;
+                }
+              }, 2000);
+            } else {
+              // 既存の場合はその場にとどまる
+              if (submitBtn) submitBtn.disabled = false;
+              if (draftBtn) draftBtn.disabled = false;
+            }
+          } else {
+            // エラーメッセージ
+            var errorMsg = result && result.message ? result.message : '不明なエラーが発生しました';
+            showMessage('エラー: ' + errorMsg, 'error', 5000);
+            
+            // ボタンを元に戻す
+            if (submitBtn) submitBtn.disabled = false;
+            if (draftBtn) draftBtn.disabled = false;
+          }
+        })
+        .withFailureHandler(function(error) {
+          // 処理状態を更新
+          isProcessing = false;
+          clearTimeout(timeoutId);
+          
+          // ローディング表示を削除
+          if (document.body.contains(loadingMessage)) {
+            document.body.removeChild(loadingMessage);
+          }
+          
+          // エラーをログ出力
+          debugLog('下書き保存エラー', error);
+          
+          // エラー表示
+          showMessage('エラーが発生しました: ' + (error.message || '不明なエラー'), 'error', 5000);
+          
+          // ボタンを元に戻す
+          if (submitBtn) submitBtn.disabled = false;
+          if (draftBtn) draftBtn.disabled = false;
+        })
+        .saveReport(formData);
+    });
+  }
+  
+  // 現在のフォーム状態をログ出力
+  debugLog('フォーム初期化完了', {
+    mode: form.querySelector('input[name="id"]') ? '編集' : '新規作成',
+    id: form.querySelector('input[name="id"]') ? form.querySelector('input[name="id"]').value : 'なし'
+  });
+});
+  </script>
+</body>
+</html>
