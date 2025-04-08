@@ -184,6 +184,27 @@
       background-color: #6c757d;
     }
     
+    .badge-info {
+      color: #fff;
+      background-color: #17a2b8;
+    }
+    
+    /* コメント数バッジ */
+    .comment-badge {
+      display: inline-block;
+      min-width: 16px;
+      height: 16px;
+      line-height: 16px;
+      padding: 0 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      white-space: nowrap;
+      border-radius: 8px;
+      background-color: #17a2b8;
+      color: white;
+    }
+    
     /* フッター */
     .footer {
       text-align: center;
@@ -289,6 +310,7 @@
                   <th>日付</th>
                   <th>作成者</th>
                   <th>ステータス</th>
+                  <th>コメント</th>
                   <th>アクション</th>
                 </tr>
               </thead>
@@ -309,6 +331,13 @@
                       <span class="badge <?= report.status === '公開' ? 'badge-success' : 'badge-secondary' ?>">
                         <?= report.status ?>
                       </span>
+                    </td>
+                    <td>
+                      <? if (report.commentCount && report.commentCount > 0) { ?>
+                        <span class="comment-badge"><?= report.commentCount ?></span>
+                      <? } else { ?>
+                        -
+                      <? } ?>
                     </td>
                     <td>
                       <a href="<?= ScriptApp.getService().getUrl() ?>?action=detail&id=<?= report.id ?>" class="btn btn-primary btn-sm">詳細</a>
@@ -334,6 +363,25 @@
     // 検索リセットボタン
     document.getElementById('resetSearch').addEventListener('click', function() {
       window.location.href = '<?= ScriptApp.getService().getUrl() ?>';
+    });
+    
+    // ページロード時にローカルストレージをチェック（白画面対策）
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        // 直前の操作情報を確認
+        var lastAction = localStorage.getItem('lastAction');
+        var lastActionTime = localStorage.getItem('lastActionTime');
+        var currentTime = new Date().getTime();
+        
+        // 記録があれば削除（クリーンアップ）
+        if (lastAction) {
+          localStorage.removeItem('lastAction');
+          localStorage.removeItem('lastActionTime');
+          console.log('前回のアクション情報をクリア:', lastAction);
+        }
+      } catch (e) {
+        console.error('ローカルストレージエラー:', e);
+      }
     });
   </script>
 </body>
