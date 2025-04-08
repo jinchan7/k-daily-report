@@ -232,3 +232,404 @@ function updateReportSheetColumns() {
     debugLog('日報シートに登録日カラムを追加しました');
   }
 }
+
+// 共通スクリプトを含める関数（テンプレート内で使用）
+function includeCommonScript() {
+  return '<script>' + CommonJS + '</script>';
+}
+
+/**
+ * HTML内で共通して使用するJavaScript
+ */
+var CommonJS = `
+// 共通ユーティリティ関数
+// デバッグログ出力関数
+function debugLog(message, data) {
+  if (console && console.log) {
+    if (data) {
+      console.log('[日報システム] ' + message, data);
+    } else {
+      console.log('[日報システム] ' + message);
+    }
+  }
+}
+
+// メッセージ表示関数
+function showMessage(message, type, duration) {
+  // 既存のメッセージを削除
+  var existingMessages = document.querySelectorAll('.message-box');
+  existingMessages.forEach(function(msg) {
+    if (document.body.contains(msg)) {
+      document.body.removeChild(msg);
+    }
+  });
+  
+  var messageBox = document.createElement('div');
+  messageBox.className = 'message-box';
+  messageBox.style.position = 'fixed';
+  messageBox.style.top = '20px';
+  messageBox.style.left = '50%';
+  messageBox.style.transform = 'translateX(-50%)';
+  messageBox.style.padding = '15px 20px';
+  messageBox.style.borderRadius = '4px';
+  messageBox.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+  messageBox.style.zIndex = '9999';
+  messageBox.style.minWidth = '250px';
+  messageBox.style.textAlign = 'center';
+  
+  // タイプに応じたスタイル
+  if (type === 'error') {
+    messageBox.style.backgroundColor = '#dc3545';
+    messageBox.style.color = 'white';
+  } else if (type === 'success') {
+    messageBox.style.backgroundColor = '#28a745';
+    messageBox.style.color = 'white';
+  } else if (type === 'warning') {
+    messageBox.style.backgroundColor = '#ffc107';
+    messageBox.style.color = '#212529';
+  } else if (type === 'loading') {
+    messageBox.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    messageBox.style.color = 'white';
+    
+    // ロード中はスピナーを追加
+    var spinner = document.createElement('div');
+    spinner.className = 'spinner';
+    spinner.style.display = 'inline-block';
+    spinner.style.width = '20px';
+    spinner.style.height = '20px';
+    spinner.style.border = '3px solid rgba(255,255,255,0.3)';
+    spinner.style.borderRadius = '50%';
+    spinner.style.borderTopColor = 'white';
+    spinner.style.marginLeft = '10px';
+    spinner.style.animation = 'spin 1s linear infinite';
+    
+    // アニメーション用のスタイル
+    var style = document.createElement('style');
+    style.innerHTML = '@keyframes spin {0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}';
+    document.head.appendChild(style);
+    
+    messageBox.textContent = message;
+    messageBox.appendChild(spinner);
+  } else {
+    messageBox.style.backgroundColor = '#007bff';
+    messageBox.style.color = 'white';
+    messageBox.textContent = message;
+  }
+  
+  if (type !== 'loading') {
+    messageBox.textContent = message;
+  }
+  
+  document.body.appendChild(messageBox);
+  
+  // 自動的に消える（loading以外）
+  if (type !== 'loading') {
+    setTimeout(function() {
+      if (document.body.contains(messageBox)) {
+        document.body.removeChild(messageBox);
+      }
+    }, duration || 3000);
+  }
+  
+  return messageBox;
+}
+
+// HTMLエスケープ
+function escapeHtml(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// 日付をフォーマット
+function formatDate(date, format) {
+  if (!date) return '';
+  
+  date = new Date(date);
+  if (isNaN(date.getTime())) return '';
+  
+  if (format === 'date') {
+    return date.toLocaleDateString('ja-JP');
+  } else if (format === 'datetime') {
+    return date.toLocaleString('ja-JP');
+  } else if (format === 'iso') {
+    return date.toISOString().split('T')[0];
+  }
+  
+  return date.toLocaleString('ja-JP');
+}
+
+// サーバー通信のラッパー関数
+var ServerApi = {
+  // 日報保存
+  saveReport: function(data, successCallback, failureCallback) {
+    var loadingMessage = showMessage('保存中...', 'loading');
+    
+    // 実行ステータス
+    var isProcessing = true;
+    
+    // タイムアウト設定（10秒）
+    var timeoutId = setTimeout(function() {
+      if (isProcessing) {
+        debugLog('保存処理タイムアウト');
+        
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        // タイムアウト通知
+        showMessage('処理に時間がかかっています。そのままお待ちください...', 'warning', 5000);
+        
+        // 15秒後にリダイレクト提案
+        setTimeout(function() {
+          if (isProcessing && confirm('応答がありません。ページを更新しますか？\\n（変更は保存されている可能性があります）')) {
+            try {
+              if (data.id) {
+                // 編集の場合は詳細画面へ
+                window.location.href = '?action=detail&id=' + data.id;
+              } else {
+                // 新規の場合は一覧へ
+                window.location.href = '?';
+              }
+            } catch (e) {
+              debugLog('リダイレクトエラー', e);
+              showMessage('画面遷移に失敗しました。手動でページを更新してください。', 'error', 5000);
+            }
+          }
+        }, 10000);
+      }
+    }, 10000);
+    
+    // サーバーへ送信
+    google.script.run
+      .withSuccessHandler(function(result) {
+        // 処理状態を更新
+        isProcessing = false;
+        clearTimeout(timeoutId);
+        
+        // ローディング表示を削除
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        // 応答をログ出力
+        debugLog('保存結果', result);
+        
+        if (successCallback) {
+          successCallback(result);
+        }
+      })
+      .withFailureHandler(function(error) {
+        // 処理状態を更新
+        isProcessing = false;
+        clearTimeout(timeoutId);
+        
+        // ローディング表示を削除
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        // エラーをログ出力
+        debugLog('保存エラー', error);
+        
+        if (failureCallback) {
+          failureCallback(error);
+        } else {
+          // エラー表示
+          showMessage('エラーが発生しました: ' + (error.message || '不明なエラー'), 'error', 5000);
+        }
+      })
+      .saveReport(data);
+  },
+  
+  // コメント保存
+  saveComment: function(data, successCallback, failureCallback) {
+    var loadingMessage = showMessage('送信中...', 'loading');
+    
+    // 実行ステータス
+    var isProcessing = true;
+    
+    // タイムアウト設定（8秒）
+    var timeoutId = setTimeout(function() {
+      if (isProcessing) {
+        debugLog('コメント送信タイムアウト');
+        
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        // タイムアウト通知
+        showMessage('処理に時間がかかっています。そのままお待ちください...', 'warning', 5000);
+      }
+    }, 8000);
+    
+    // サーバーへ送信
+    google.script.run
+      .withSuccessHandler(function(result) {
+        // 処理状態を更新
+        isProcessing = false;
+        clearTimeout(timeoutId);
+        
+        // ローディング表示を削除
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        // 応答をログ出力
+        debugLog('コメント送信結果', result);
+        
+        if (successCallback) {
+          successCallback(result);
+        }
+      })
+      .withFailureHandler(function(error) {
+        // 処理状態を更新
+        isProcessing = false;
+        clearTimeout(timeoutId);
+        
+        // ローディング表示を削除
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        // エラーをログ出力
+        debugLog('コメント送信エラー', error);
+        
+        if (failureCallback) {
+          failureCallback(error);
+        } else {
+          // エラー表示
+          showMessage('エラーが発生しました: ' + (error.message || '不明なエラー'), 'error', 5000);
+        }
+      })
+      .saveComment(data);
+  },
+  
+  // 管理機能：重複日報を削除
+  cleanupDuplicates: function(successCallback, failureCallback) {
+    var loadingMessage = showMessage('重複日報を検出・削除しています...', 'loading');
+    
+    google.script.run
+      .withSuccessHandler(function(result) {
+        // ローディング表示を削除
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        if (successCallback) {
+          successCallback(result);
+        }
+      })
+      .withFailureHandler(function(error) {
+        // ローディング表示を削除
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        if (failureCallback) {
+          failureCallback(error);
+        } else {
+          // エラー表示
+          showMessage('エラーが発生しました: ' + (error.message || '不明なエラー'), 'error', 5000);
+        }
+      })
+      .cleanupDuplicateReports();
+  },
+  
+  // 管理機能：キャッシュをクリア
+  clearCache: function(successCallback, failureCallback) {
+    var loadingMessage = showMessage('キャッシュをクリアしています...', 'loading');
+    
+    google.script.run
+      .withSuccessHandler(function(result) {
+        // ローディング表示を削除
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        if (successCallback) {
+          successCallback(result);
+        }
+      })
+      .withFailureHandler(function(error) {
+        // ローディング表示を削除
+        if (document.body.contains(loadingMessage)) {
+          document.body.removeChild(loadingMessage);
+        }
+        
+        if (failureCallback) {
+          failureCallback(error);
+        } else {
+          // エラー表示
+          showMessage('エラーが発生しました: ' + (error.message || '不明なエラー'), 'error', 5000);
+        }
+      })
+      .clearAllCaches();
+  }
+};
+
+// ページ遷移前の確認機能
+var PageTransition = {
+  init: function() {
+    // ページロード完了時のフラグ
+    window.pageFullyLoaded = false;
+    
+    // DOMContentLoaded 時に実行
+    document.addEventListener('DOMContentLoaded', function() {
+      // 5秒後にフラグを設定
+      setTimeout(function() {
+        window.pageFullyLoaded = true;
+      }, 3000);
+    });
+    
+    // ページ遷移前の確認
+    window.addEventListener('beforeunload', function(e) {
+      // ページが完全にロードされていなければ、確認メッセージを表示しない
+      if (!window.pageFullyLoaded) {
+        return undefined;
+      }
+      
+      // フォームに変更があれば確認メッセージを表示
+      var textareas = document.querySelectorAll('textarea');
+      var unsavedChanges = false;
+      
+      for (var i = 0; i < textareas.length; i++) {
+        if (textareas[i].value.trim() !== '' && !textareas[i].readOnly) {
+          unsavedChanges = true;
+          break;
+        }
+      }
+      
+      if (unsavedChanges) {
+        var message = '入力中の内容があります。このページを離れますか？';
+        e.returnValue = message;
+        return message;
+      }
+    });
+  },
+  
+  // 特定のURLに遷移（パラメータを考慮）
+  navigate: function(action, id) {
+    var url = '?';
+    
+    if (action) {
+      url += 'action=' + action;
+      
+      if (id) {
+        url += '&id=' + id;
+      }
+    }
+    
+    try {
+      window.location.href = url;
+    } catch (e) {
+      debugLog('画面遷移エラー', e);
+      showMessage('画面遷移に失敗しました', 'error', 3000);
+    }
+  }
+};
+`;
